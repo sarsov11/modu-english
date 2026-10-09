@@ -7,10 +7,10 @@
 body{margin:0;background:var(--bg);color:var(--ink);font-family:Pretendard,system-ui,sans-serif;font-weight:500;font-size:16px;line-height:1.6;-webkit-tap-highlight-color:transparent}
 button{font:inherit;color:inherit;cursor:pointer}
 .wrap{max-width:720px;margin:0 auto;padding:0 16px 96px}
-.top{display:flex;align-items:center;gap:12px;height:56px;border-bottom:1px solid var(--line);padding:0 16px;position:sticky;top:0;background:var(--bg);z-index:5}
-.top .brand{font-weight:900;font-size:19px}
+.top{display:flex;align-items:center;gap:12px;min-height:56px;border-bottom:1px solid var(--line);padding:6px 16px;position:sticky;top:0;background:var(--bg);z-index:5}
+.top .brand{font-weight:900;font-size:19px;min-width:0;line-height:1.3;word-break:keep-all}
 .top .back{border:0;background:none;font-size:22px;font-weight:900;padding:0 4px}
-.top .pid{margin-left:auto;color:var(--sub);font-size:14px}
+.top .pid{margin-left:auto;color:var(--sub);font-size:14px;flex-shrink:0;white-space:nowrap}
 h2{font-size:22px;font-weight:900;margin:22px 0 6px}
 h3{font-size:17px;font-weight:900;margin:18px 0 8px}
 .muted{color:var(--sub);font-size:14px}
