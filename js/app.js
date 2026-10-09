@@ -695,7 +695,10 @@ root.addEventListener("click", e => {
       c.flash = i; c.miss++; c.ok = false; c.pop = []; c.msg = c.ph === "S" ? "주어 아님" : "동사 아님";
       setTimeout(() => { if (c.flash === i) { c.flash = null; render(); } }, 600);
     }
-    render(); return;
+    render();
+    /* 짜잔 3판(테라러닝 공용, 2026-10-09): 주어·동사 누르기 판정 */
+    if (window.ZZ) { const el = root.querySelector(".msg") || tk; c.ok ? ZZ.ok(el) : ZZ.no(el); }
+    return;
   }
   const b = e.target.closest("[data-a]"); if (!b) return;
   const a = b.dataset.a, v = b.dataset.v, d = st && st.dr, c = st && st.ck;
@@ -719,7 +722,12 @@ root.addEventListener("click", e => {
     }
     case "step": { const n = +v; if (n > st.maxStep) return; st.step = n; window.scrollTo(0, 0); break; }
     case "vstart": { const V = curV(), W = curWords(); vStart(V, W); break; }
-    case "vpick": vPick(curV(), curWords(), +v); break;
+    case "vpick": {
+      vPick(curV(), curWords(), +v); render();
+      /* 단어 테스트는 보기 칸 색(ok/no)만 바뀌어 짜잔이 못 알아본다. 직접 넘긴다(2026-10-09) */
+      if (window.ZZ) { const no = root.querySelector(".opts .opt.no"), ok = root.querySelector(".opts .opt.ok"); if (no) ZZ.no(no); else if (ok) ZZ.ok(ok); }
+      return;
+    }
     case "vnext": {
       const V = curV(), fin = vNext(V, curWords());
       if (fin && nav.tab === "p") { bump(1); recordWords(P.words, P.id); }
