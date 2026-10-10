@@ -71,7 +71,7 @@ function openPassage(pid, back) {
   if (!it || !it.p[3]) return;
   nav.loading = true; nav.err = ""; nav.tab = "p"; nav.back = back || "home"; render();
   loadSrc(it.e.u).then(d => {
-    P = d[pid]; st = newSt(pid); nav.loading = false; window.scrollTo(0, 0); render();
+    P = d[pid]; P.wordsAll = P.wordsAll || P.words || []; P.words = P.wordsAll.filter(lvOk); st = newSt(pid); nav.loading = false; window.scrollTo(0, 0); render();
   }).catch(e => { nav.loading = false; nav.err = e.message; render(); });
 }
 
@@ -127,6 +127,8 @@ function blocks(total, isDone, cur) {
 const FLAME = `<svg class="flame" viewBox="0 0 24 24" width="30" height="30" aria-hidden="true"><path d="M12 2c1 4-3 5.5-3 9.5 0 1.6.8 2.7 1.8 3.3-.3-2 .7-3.6 2-4.6 0 2.2 2.2 3.1 2.2 5.3 0 1.3-.6 2.3-1.5 2.9 2.4-.5 4.5-2.5 4.5-5.9 0-3.6-2.6-5.1-3.6-8-1 .9-1.6 1.6-2.4 3C12.4 6.5 12.3 4.3 12 2z" fill="#0B5E3C"/><path d="M12 22c-3.3 0-6-2.5-6-5.8 0-2 1-3.3 2-4.2.2 1.6 1.3 2.6 2.4 3 .1-1.5.9-2.8 1.8-3.6.2 1.8 2 2.6 2 4.4 0 .9-.4 1.6-1 2.1 1.1-.4 1.8-1.2 1.8-2.3 0 4-1.8 6.4-3 6.4z" fill="#0B5E3C" opacity=".55"/></svg>`;
 const SHIELD = `<svg class="shield" viewBox="0 0 24 28" width="26" height="30" aria-hidden="true"><path d="M12 1l9 3.5v8.2c0 6.2-4.1 11-9 13.3C7.1 23.7 3 18.9 3 12.7V4.5z" fill="#0B5E3C"/><path d="M8 13l3 3 5-6" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 
+/* 단어 수준(10-10): lv "m" = 너무 쉬워 출제 안 함, "1"~"3" = 모의고사에 자리 잡는 학년. 학생 학년 이상만 출제, lv 없으면 출제 */
+const lvOk = w => w.lv !== "m" && (!w.lv || +w.lv >= LS.get("grade", 3));
 /* 단어 한 줄: w (← b)  p  **m**, e1, e2 */
 function wline(w) {
   /* 표제어는 원형(b 없으면 en). 뜻은 사전 원형 뜻(hm), 그 아래 작게 지문 속 형태와 뜻. */
@@ -134,9 +136,9 @@ function wline(w) {
   const main = hm ? hm.join(", ") : w.ko;
   const ex = hm ? "" : (w.e || []).filter(x => x !== w.ko).map(x => ", " + esc(x)).join("");
   const showCtx = !w.nt && (w.en !== head || (hm && !hm.includes(w.ko)));
-  return `<span class="wl"><span class="en">${esc(head)}</span>${w.hp || w.p ? `<span class="ps">${esc(w.hp || w.p)}</span>` : ""}${w.nt ? `<span class="bf">교재</span>` : ""}<span class="mn"><b>${esc(main)}</b>${ex}</span>${showCtx ? `<span class="cx">지문: ${esc(w.en)} — ${esc(w.ko)}</span>` : ""}</span>`;
+  return `<span class="wl"><span class="en">${esc(head)}</span>${w.hp || w.p ? `<span class="ps">${esc((w.hp || w.p) === "phr" && w.pf ? "phr·" + w.pf : (w.hp || w.p))}</span>` : ""}${w.nt ? `<span class="bf">교재</span>` : ""}<span class="mn"><b>${esc(main)}</b>${ex}</span>${showCtx ? `<span class="cx">지문: ${esc(w.en)} — ${esc(w.ko)}</span>` : ""}</span>`;
 }
-const slimW = w => ({ en: w.en, ko: w.ko, b: w.b, p: w.p, e: w.e, hp: w.hp, hm: w.hm });
+const slimW = w => ({ en: w.en, ko: w.ko, b: w.b, p: w.p, e: w.e, hp: w.hp, hm: w.hm, pf: w.pf, lv: w.lv });
 
 /* ───────── 이번 주 단어 ───────── */
 function recordWords(words, pid) {
@@ -335,6 +337,7 @@ function curV() { return nav.tab === "wtest" ? WT : st.voc; }
 function curWords() { return nav.tab === "wtest" ? WT.words : P.words; }
 function vocabStep() {
   const v = st.voc;
+  if (!P.words.length) return `<h2>단어</h2><div class="muted">고${LS.get("grade", 3)} 기준 새로 익힐 단어 없음</div><div class="row"><button class="btn pri" data-a="vskip">분석</button></div>`;
   if (v.phase === "list") {
     return `<h2>단어 ${P.words.length}</h2><div class="wlist">` + P.words.map(w => `<div class="w">${wline(w)}</div>`).join("") + `</div>
     <div class="row"><button class="btn pri" data-a="vstart">테스트</button></div>`;
@@ -594,11 +597,11 @@ const STOPW = new Set("a an the to of in on at for by with from as and or is are
 let wbEl = null;
 function wbHide() { const b = document.getElementById("wbub"); if (b) b.style.display = "none"; wbEl = null; }
 function ctxMatch(low, base, el) {
-  if (!P || !P.words) return { one: null, phr: [] };
+  if (!P || !(P.wordsAll || P.words)) return { one: null, phr: [] };
   const blk = (el.closest(".sent,.box,.passage,p") || root).textContent.toLowerCase();
   let one = null; const phr = [];
   const sig = f => f.split(/[^a-z']+/).filter(x => x.length > 2 && !STOPW.has(x));
-  P.words.forEach(w => {
+  (P.wordsAll || P.words).forEach(w => {
     const f1 = w.en.toLowerCase(), fb = (w.b || "").toLowerCase();
     if (!/\s/.test(f1) && !/\s/.test(fb)) { if (!one && [f1, fb].some(f => f && (f === low || f === base))) one = w; return; }
     const toks = sig(f1 + " " + fb);
@@ -721,6 +724,7 @@ root.addEventListener("click", e => {
       WT = { words: W, phase: "list", queue: [], cur: 0, pick: null, opts: [], wrong: 0, first: {} }; nav.tab = "wtest"; break;
     }
     case "step": { const n = +v; if (n > st.maxStep) return; st.step = n; window.scrollTo(0, 0); break; }
+    case "vskip": bump(1); st.step = 1; break;
     case "vstart": { const V = curV(), W = curWords(); vStart(V, W); break; }
     case "vpick": {
       vPick(curV(), curWords(), +v); render();
