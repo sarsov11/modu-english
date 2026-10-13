@@ -77,8 +77,15 @@ function openPassage(pid, back) {
 
 /* ───────── 오늘 지문 고르기 ───────── */
 function doneMap() { return LS.get("done", {}); }
+/* 고른 학년에 열린 지문이 하나도 없으면 열린 지문이 있는 가장 가까운 학년으로 대신 낸다 */
+function readyGrade(g) {
+  const has = x => INDEX.some(e => e.g === x && e.p.some(p => p[3]));
+  if (has(g)) return g;
+  for (const x of [3, 2, 1]) if (has(x)) return x;
+  return g;
+}
 function todayIds() {
-  const key = ymd(new Date()), g = LS.get("grade", 3), n = LS.get("count", 4);
+  const key = ymd(new Date()), g = readyGrade(LS.get("grade", 3)), n = LS.get("count", 4);
   const t = LS.get("today", null), done = doneMap();
   const ids = (t && t.date === key && t.g === g && t.n === n) ? t.ids.slice() : [];
   const before = ids.length;
@@ -257,7 +264,7 @@ function home() {
       <button class="chip" data-a="ddedit">${dd ? "수정" : "날짜 설정"}</button></div>
     <div class="stat">
       <div class="st-i">${FLAME}<b>${sk}</b><span>연속</span></div>
-      <div class="st-i">${SHIELD}<b>상위 ${topPct()}%</b></div>
+      <div class="st-i">${SHIELD}<b>${Object.keys(done).length}</b><span>완료</span></div>
     </div>
   </div>
   ${ded ? `<div class="card"><div class="muted">D-day 이름</div><input id="dl" class="inp" value="${esc((LS.get("dday", {}) || {}).label || "")}" placeholder="수능">
@@ -265,6 +272,7 @@ function home() {
     <div class="row"><button class="btn pri" data-a="ddsave">저장</button><button class="btn ghost" data-a="ddclear">삭제</button></div></div>` : ""}
   <h3>출석</h3>${attWeek()}${attMonth()}
   <h2>오늘</h2>
+  ${readyGrade(g) !== g ? `<div class="muted">고${g} 지문은 아직 열리지 않아 고${readyGrade(g)} 지문으로 학습합니다.</div>` : ""}
   <div class="today"><b>${dn} / ${ids.length || n}</b></div>
   ${blocks(ids.length || n, i => !!(ids[i] && done[ids[i]]), dn)}
   <div class="plist">` + ids.map((id, k) => {
@@ -290,6 +298,7 @@ function explore() {
   if (ex.u) { const e = INDEX.find(x => x.u === ex.u); crumb.push(e ? e.n : ""); }
   if (crumb.length) h += `<div class="crumb"><button data-a="exback">‹</button>${esc(crumb.join(" / "))}</div>`;
   else h += `<h2>학년</h2>`;
+  if (ex.g && !ex.u && !cnt(INDEX.filter(e => e.g === ex.g))[0]) h += `<div class="muted" style="margin:10px 0">고${ex.g} 지문은 아직 열리지 않았습니다. 고3 지문부터 열려 있습니다.</div>`;
   const badge = ([r, t]) => `<span class="pill ${r ? "g" : ""}">${r} / ${t}</span>`;
   if (!ex.g) {
     h += `<div class="plist">` + [1, 2, 3].map(g => `<button class="it" data-a="exg" data-v="${g}"><span class="tt">고${g}</span>${badge(cnt(INDEX.filter(e => e.g === g)))}</button>`).join("") + `</div>`;
@@ -314,6 +323,7 @@ function wordsTab() {
   const keys = Object.keys(all).sort();
   let h = `<div class="top"><div class="brand">단어장</div><div class="pid">${keys.length}</div></div><div class="wrap">`;
   if (wk.length) h += `<h2>이번 주</h2>` + wk.map(w => `<div class="wbox">${wline(w)}</div>`).join("");
+  if (!keys.length) h += `<div class="muted" style="margin-top:18px">아직 모은 단어가 없습니다. 지문의 단어 테스트를 통과하면 여기에 쌓입니다.</div>`;
   const bad = wrongWords();
   if (bad.length) h += `<h2>틀린 단어</h2>` + bad.map(w => `<div class="wbox">${wline(w)}<span class="ct pill r">${wr[w.en]}회</span></div>`).join("");
   if (keys.length) h += `<h2>전체</h2>` + keys.map(k => `<div class="wbox">${wline(Object.assign({ en: k }, all[k]))}</div>`).join("");
