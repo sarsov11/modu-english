@@ -400,7 +400,7 @@ const AN_STEP = ["원문", "수식어 괄호", "S + V", "해석 + 문법"];
 function bgCard() {
   const g = P.bg, open = st.an.bg !== false;
   return `<div class="bgc"><button class="bgh" data-a="bgtog"><span>배경지식</span><span class="bgt">${esc(g.t)}</span><span class="car">${open ? "▲" : "▼"}</span></button>` +
-    (open ? `<div class="bgb"><div class="bgs">${esc(g.s)}</div>` + ((g.k || []).length ? `<div class="chips">` + g.k.map(c => `<span class="chip"><b>${esc(c.en)}</b> ${esc(c.ko)}<span class="cd">${esc(c.d)}</span></span>`).join("") + `</div>` : "") + `</div>` : "") + `</div>`;
+    (open ? `<div class="bgb">` + (window.DIAGRAM && window.DOSIK && DOSIK.english && DOSIK.english[P.id] ? /* 도식(2026-10-26 「모든 과목 개념을 도식으로」) — 배경지식 요약을 도식으로, 원문은 접는다 */ DOSIK.english[P.id].map(DIAGRAM.html).join("") + `<details class="bgsrc"><summary>원문</summary><div class="bgs">${esc(g.s)}</div></details>` : `<div class="bgs">${esc(g.s)}</div>`) + ((g.k || []).length ? `<div class="chips">` + g.k.map(c => `<span class="chip"><b>${esc(c.en)}</b> ${esc(c.ko)}<span class="cd">${esc(c.d)}</span></span>`).join("") + `</div>` : "") + `</div>` : "") + `</div>`;
 }
 function analyze() {
   const a = st.an, s = P.sentences[a.si], k = a.k;
