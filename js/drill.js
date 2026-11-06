@@ -122,7 +122,7 @@
       return `<button class="opt ${c}" data-d="gpick" data-v="${i}" ${done ? "disabled" : ""}>${it.t === "c" ? esc(o) : CIR[i] + " " + esc(o)}</button>`;
     }).join("") + `</div>`;
     if (done) {
-      h += `<div class="msg ${ok ? "ok" : "no"}" style="margin-top:10px">${ok ? "✓ 정답" + (gs.streak >= 3 ? " " + gs.streak + "연속" : "") : "오답 → 정답 " + esc(it.opts[it.ai])}</div>`;
+      h += `<div class="msg ${ok ? "ok" : "no"}" style="margin-top:10px">${ok ? "✓ 정답" : "오답 → 정답 " + esc(it.opts[it.ai])}</div>`;
       if (!ok) h += `<div class="why">${esc(shortWhy(it))}</div>`;
       h += `<details><summary>해설 보기</summary>${gExplain(it)}</details>`;
       h += `<div class="row"><button class="btn pri" data-d="gnext">${gs.i < n - 1 ? "다음" : "결과"}</button></div>`;
