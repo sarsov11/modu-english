@@ -255,7 +255,7 @@ function attMonth() {
 function home() {
   const g = LS.get("grade", 3), n = LS.get("count", 4), ids = todayIds(), done = doneMap();
   const dn = ids.filter(i => done[i]).length, now = new Date(), dw = now.getDay();
-  const wk = weekWords(), bad = wrongWords().length, dd = ddayInfo(), sk = streakDays();
+  const wk = weekWords(), bad = wrongWords().length, dd = ddayInfo();
   const wkTag = dw === 6 ? "토요일" : dw === 0 ? "일요일" : "주말";
   const ded = nav.dedit;
   return `<div class="top"><div class="brand">모두의 영어</div><div class="pid">${ymd(now)} (${DOW[dw]})</div></div><div class="wrap">
@@ -263,7 +263,6 @@ function home() {
     <div class="dd-box">${dd ? `<div class="dnum">${dd.txt}</div><div class="dlab">${esc(dd.label)}</div>` : `<div class="dnum off">D-day</div>`}
       <button class="chip" data-a="ddedit">${dd ? "수정" : "날짜 설정"}</button></div>
     <div class="stat">
-      <div class="st-i">${FLAME}<b>${sk}</b><span>연속</span></div>
       <div class="st-i">${SHIELD}<b>${Object.keys(done).length}</b><span>완료</span></div>
     </div>
   </div>
