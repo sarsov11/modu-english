@@ -31,14 +31,15 @@ function dayTotal() { return dPerMin() * dSubjects().length; }
 function settingsCard(g, n) {
   const subs = dSubjects(), pm = dPerMin(), nn = subs.length;
   return `<h2 class="stitle">설정</h2>
-  <div class="card"><h3 style="margin-top:0">공부할 과목</h3><div class="muted">켜 둔 과목만 하루 시간에 들어갑니다. 영어는 이 앱의 과목이라 끌 수 없어요.</div>
+  <div class="card"><h3 style="margin-top:0">공부할 과목</h3>
     <div class="seg wrap">${DSUBJ.map(d => `<button class="${subs.includes(d[0]) ? "on" : ""}" data-a="subj" data-v="${d[0]}" ${d[0] === "english" ? "disabled" : ""}>${d[1]}</button>`).join("")}</div>
     <h3>과목당 하루 시간</h3>
     <div class="seg wrap">${PERMIN.map(x => `<button class="${pm === x[0] ? "on" : ""}" data-a="permin" data-v="${x[0]}" ${x[0] * nn > DAYMAX ? "disabled" : ""}>${x[1]}</button>`).join("")}</div>
     <div class="dsum">고른 과목 ${nn}개 · 하루 합계 ${fmtMin(pm * nn)}</div></div>
   <div class="card"><h3 style="margin-top:0">학습</h3>
     <div class="muted">학년</div><div class="seg">${[1, 2, 3].map(x => `<button class="${g === x ? "on" : ""}" data-a="grade" data-v="${x}">고${x}</button>`).join("")}</div>
-    <div class="muted">하루 지문</div><div class="seg">${[3, 4].map(x => `<button class="${n === x ? "on" : ""}" data-a="count" data-v="${x}">${x}개</button>`).join("")}</div></div>`;
+    <div class="muted">하루 지문</div><div class="seg">${[3, 4].map(x => `<button class="${n === x ? "on" : ""}" data-a="count" data-v="${x}">${x}개</button>`).join("")}</div>
+    <button class="li" data-zs="1"><span>합격 전략</span></button></div>`;
 }
 const INDEX = window.MYE_INDEX || [];
 const PIDX = {};   /* pid -> {e: 회차, p: [pid,번호,유형,ready]} */
@@ -260,10 +261,11 @@ const TABI = {
   rec: SVGI(`<path d="M5 19.5V12M12 19.5V5M19 19.5V9"/>`)
 };
 /* o.back: 뒤로 단추의 data 속성 문자열 · o.title: 안쪽 화면 이름 · o.right: 오른쪽 진행 글 · o.sub: 바깥 화면의 과목 옆 글 */
+const HNAV = [["home", "오늘"], ["map", "합격 지도"], ["explore", "기출"], ["drill", "드릴"], ["words", "단어장"], ["rec", "기록"]];
 function topBar(o) {
   o = o || {};
   if (o.back) return `<div class="top"><button class="back" ${o.back} aria-label="뒤로">‹</button><div class="ttl">${esc(o.title || "")}</div><div class="sp"></div>${o.right ? `<div class="hprog">${o.right}</div>` : ""}</div>`;
-  return `<div class="top"><span class="mark">대</span><div class="logo">모두의 <b>대입</b></div><div class="sub">영어${o.sub ? " · " + esc(o.sub) : ""}</div><div class="sp"></div><a class="gridb" href="https://teralearning.kr/" aria-label="테라러닝 전체 서비스">${GRIDI}</a></div>`;
+  return `<div class="top"><span class="mark">대</span><div class="logo">모두의 <b>대입</b></div><div class="sub">영어${o.sub ? " · " + esc(o.sub) : ""}</div><div class="sp"></div><nav class="hnav">${HNAV.map(([k, n]) => `<button class="${nav.tab === k || (k === "drill" && (nav.tab === "gram" || nav.tab === "writ")) ? "on" : ""}" data-a="tab" data-v="${k}">${n}</button>`).join("")}</nav><a class="gridb" href="https://teralearning.kr/" aria-label="테라러닝 전체 서비스">${GRIDI}</a></div>`;
 }
 window.TOPBAR = topBar;
 
@@ -291,7 +293,7 @@ const ENGQ = (() => {
   };
   const unsureMap = () => LS.get("dq.unsure", {});
   const prog = (done, total) => `<div class="tq-prog"><i><u style="width:${total ? Math.round(100 * done / total) : 0}%"></u></i><span><b>${Math.max(0, total - done)}</b>문제 남았어요</span></div>`;
-  const meta = (no, o = {}) => `<div class="tq-meta"><span class="tq-no">${no}</span>${o.tag ? `<span class="tq-tagt">${o.tag}</span>` : ""}<span data-tq="badge" data-on="${o.hot || 0}"></span><span class="tq-sp"></span><span data-tq="tg"></span></div>`;
+  const meta = (no, o = {}) => `<div class="tq-meta"><span class="tq-no">${no}</span>${o.tag ? `<span class="tq-tagt">${String(o.tag).split(" · ").map(x => `<span>${x}</span>`).join(" · ")}</span>` : ""}<span data-tq="badge" data-on="${o.hot || 0}"></span><span class="tq-sp"></span><span data-tq="tg"></span></div>`;
   const choices = (opts, f) => `<ul class="tq-choices">` + opts.map((o, i) => `<li><button class="tq-choice ${f.cls(i)}" ${f.attr} data-v="${i}" ${f.dis ? "disabled" : ""}><span class="tq-n">${i + 1}</span><span class="tq-t">${f.label ? f.label(i) : esc(o)}</span></button></li>`).join("") + `</ul>`;
   const exp = (inner, ans) => `<div class="tq-exp"><div class="tq-tabs"><button class="is-on" type="button">해설</button></div><div class="tq-exp-box">${inner}${ans ? `<span class="tq-ans">${ans}</span>` : ""}</div></div>`;
   /* o: key, exp(해설이 있나), prev/next(속성 문자열 또는 null), submit({attr,label,dis}), pos, total, omr(번호판 있음), left(앞에 끼울 html) */
@@ -331,7 +333,7 @@ const ENGQ = (() => {
   function load() {
     if (loading) return; loading = true;
     const add = src => new Promise(res => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = res; document.head.appendChild(s); });
-    Promise.all([window.TERA_Q ? 0 : add("js/tera-q.js?v=1110c"), window.TERA_PAD ? 0 : add("js/tera-pad.js?v=1110b")]).then(() => { loading = false; after(); });
+    Promise.all([window.TERA_Q ? 0 : add("js/tera-q.js?v=1110c"), window.TERA_PAD ? 0 : add("js/tera-pad.js?v=1110c")]).then(() => { loading = false; after(); });
   }
   function after() {
     const b = root.querySelector(".tq-bar");
@@ -408,6 +410,7 @@ function home() {
   }).join("") + `</div>
   <button class="btn pri full" data-a="open" data-v="${ids.find(x => !done[x]) || ids[0] || ""}" ${ids.length ? "" : "disabled"}>시작</button></section>
   <div class="stat2"><div class="card"><b>${Object.keys(done).length}</b><span>완료 지문</span></div><div class="card"><b>${streakDays()}</b><span>연속 출석일</span></div></div>
+  <div class="card zsrow"><button class="li" data-zs="1"><span>합격 전략</span></button></div>
   <h3>이번 주 출석</h3>${attWeek()}${attMonth()}
   <div class="card"><h3 style="margin-top:0">주말 단어 테스트</h3>
     <div class="row" style="margin:0"><span class="pill r">${wkTag}</span><span>이번 주 단어 ${wk.length}${bad ? " + 복습 단어 " + bad : ""}</span></div>
@@ -425,7 +428,7 @@ function mountMap() {
   const host = document.getElementById("emap"); if (!host) return;
   const go = () => window.ENGMAP && window.ENGMAP.mount(host);
   if (window.ENGMAP) return go();
-  const sc = document.createElement("script"); sc.src = "js/eng-map.js?v=1110c"; sc.onload = go; document.head.appendChild(sc);
+  const sc = document.createElement("script"); sc.src = "js/eng-map.js?v=1110d"; sc.onload = go; document.head.appendChild(sc);
 }
 /* ───────── 드릴: 문법 드릴 · 서술형 드릴 ───────── */
 function drillHub() {
@@ -444,7 +447,7 @@ function explore() {
   if (ex.u) { const e = INDEX.find(x => x.u === ex.u); crumb.push(e ? e.n : ""); }
   if (crumb.length) h += `<div class="crumb"><button data-a="exback">‹</button>${esc(crumb.join(" / "))}</div>`;
   else h += `<h2>학년</h2>`;
-  if (ex.g && !ex.u && !cnt(INDEX.filter(e => e.g === ex.g))[0]) h += `<div class="muted" style="margin:10px 0">고${ex.g} 지문은 아직 열리지 않았습니다. 고3 지문부터 열려 있습니다.</div>`;
+  if (ex.g && !ex.u && !cnt(INDEX.filter(e => e.g === ex.g))[0]) h += `<div class="muted" style="margin:10px 0">고${ex.g} 지문은 아직 열리지 않았습니다.</div>`;
   const badge = ([r, t]) => `<span class="pill ${r ? "g" : ""}">${r} / ${t}</span>`;
   const dn0 = doneMap(), open0 = list => list.some(e => e.p.some(p => p[3] && !dn0[p[0]]));
   if (!ex.g) {
@@ -473,7 +476,7 @@ function wordsTab() {
   const keys = Object.keys(all).sort();
   let h = topBar({ sub: "단어장 " + keys.length }) + `<div class="wrap">`;
   if (wk.length) h += `<h2>이번 주</h2>` + wk.map(w => `<div class="wbox">${wline(w)}</div>`).join("");
-  if (!keys.length) h += `<div class="muted" style="margin-top:18px">아직 모은 단어가 없습니다. 지문의 단어 테스트를 통과하면 여기에 쌓입니다.</div>`;
+  if (!keys.length) h += `<div class="muted" style="margin-top:18px">아직 모은 단어가 없습니다.</div>`;
   { const nw = dayWordsN(); h += `<div class="row"><button class="btn pri full" data-a="${nw ? "wstart" : "tab"}" data-v="${nw ? "" : "home"}">${nw ? "단어 테스트" : "오늘"}</button></div>`; }
   const bad = wrongWords();
   if (bad.length) h += `<h2>복습 단어</h2>` + bad.map(w => `<div class="wbox">${wline(w)}<span class="ct pill r">${wr[w.en]}회</span></div>`).join("");
@@ -552,7 +555,7 @@ const AN_STEP = ["원문", "수식어 괄호", "S + V", "해석 + 문법"];
 function bgCard() {
   const g = P.bg, open = st.an.bg !== false;
   return `<div class="bgc"><button class="bgh" data-a="bgtog"><span>배경지식</span><span class="bgt">${esc(g.t)}</span><span class="car">${open ? "▲" : "▼"}</span></button>` +
-    (open ? `<div class="bgb">` + (window.DIAGRAM && window.DOSIK && DOSIK.english && DOSIK.english[P.id] ? /* 도식(2026-10-26 「모든 과목 개념을 도식으로」) — 배경지식 요약을 도식으로, 원문은 접는다 */ DOSIK.english[P.id].map(DIAGRAM.html).join("") + `<details class="bgsrc"><summary>원문</summary><div class="bgs">${esc(g.s)}</div></details>` : `<div class="bgs">${esc(g.s)}</div>`) + ((g.k || []).length ? `<div class="chips">` + g.k.map(c => `<span class="chip"><b>${esc(c.en)}</b> ${esc(c.ko)}<span class="cd">${esc(c.d)}</span></span>`).join("") + `</div>` : "") + `</div>` : "") + `</div>`;
+    (open ? `<div class="bgb">` + (window.DIAGRAM && window.DOSIK && DOSIK.english && DOSIK.english[P.id] ? /* 도식(2026-10-26 「모든 과목 개념을 도식으로」) — 배경지식 요약을 도식으로, 원문은 접는다 */ DOSIK.english[P.id].map(DIAGRAM.html).join("") + `<details class="bgsrc"><summary>원문</summary><div class="bgs concept-bgs">${esc(g.s)}</div></details>` : `<div class="bgs concept-bgs">${esc(g.s)}</div>`) + ((g.k || []).length ? `<div class="chips">` + g.k.map(c => `<span class="chip"><b>${esc(c.en)}</b> ${esc(c.ko)}<span class="cd">${esc(c.d)}</span></span>`).join("") + `</div>` : "") + `</div>` : "") + `</div>`;
 }
 function analyze() {
   const a = st.an, s = P.sentences[a.si], k = a.k;
@@ -563,7 +566,7 @@ function analyze() {
   if (k >= 1) h += `<div class="legend"><b>( )</b> 수식어 &nbsp; <b>[ ]</b> 명사절</div>`;
   if (k >= 2 && (s.frag || (s.main.length && !s.main[0].s.h.length))) h += `<div class="muted" style="margin-top:6px">${s.frag ? "S V 없음 → 단편" : "명령문 → S 생략"}</div>`;
   if (k >= 3) {
-    h += `<div class="ko">${esc(s.ko)}</div>` + (s.notes.length ? `<ul class="notes">` + s.notes.map((n, i) => `<li class="${i === a.note ? "on" : ""}" data-a="note" data-v="${i}"><span class="n">${i + 1}</span><span><span class="k">${esc(n[2])}</span><br>${esc(n[3])}</span></li>`).join("") + `</ul>` : "");
+    h += `<div class="ko passage-ko">${esc(s.ko)}</div>` + (s.notes.length ? `<ul class="notes">` + s.notes.map((n, i) => `<li class="${i === a.note ? "on" : ""}" data-a="note" data-v="${i}"><span class="n">${i + 1}</span><span><span class="k">${esc(n[2])}</span><br>${esc(n[3])}</span></li>`).join("") + `</ul>` : "");
   }
   const last = a.si === P.sentences.length - 1;
   h += `<div class="row">${a.si || k ? `<button class="btn ghost" data-a="anprev">이전</button>` : ""}` +
@@ -636,31 +639,31 @@ function markPassage(text, ul) {
 function origPassage(q) {
   let h = "";
   if (q.blocks) {
-    if (q.head) h += `<div class="box">${esc(q.head)}</div>`;
+    if (q.head) h += `<div class="box stem-box">${esc(q.head)}</div>`;
     h += Object.keys(q.blocks).map(k => `<p>${q.head ? `<span class="olab">(${k})</span> ` : ""}${markPassage((q.head ? "" : "(" + k + ") ") + q.blocks[k], q.ul)}</p>`).join("");
   } else if (q.type === "삽입") {
-    h += `<div class="box">${esc(q.given || "")}</div><div class="box">${markPassage(q.p || "", null)}</div>`;
+    h += `<div class="box stem-box">${esc(q.given || "")}</div><div class="box stem-box">${markPassage(q.p || "", null)}</div>`;
   } else if (q.type === "빈칸") {
-    h += `<div class="box">${esc(q.p || "").replace(/_{2,}/g, `<span class="blank"></span>`)}</div>`;
+    h += `<div class="box stem-box">${esc(q.p || "").replace(/_{2,}/g, `<span class="blank"></span>`)}</div>`;
   } else if (q.type === "요약") {
-    h += `<div class="box">${esc(q.p || "")}</div><div style="text-align:center;font-weight:900">↓</div><div class="box">${esc(q.sum || "").replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
-  } else h += `<div class="box">${markPassage(q.p || "", q.ul)}</div>`;
+    h += `<div class="box stem-box">${esc(q.p || "")}</div><div style="text-align:center;font-weight:900">↓</div><div class="box stem-box">${esc(q.sum || "").replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
+  } else h += `<div class="box stem-box">${markPassage(q.p || "", q.ul)}</div>`;
   if (q.note) h += `<div class="note-small">${esc(q.note)}</div>`;
   return h;
 }
 function passageHtml(q) {
   const kind = q.p, S = P.sentences.map(s => esc(s.t));
-  if (kind === "full") return `<div class="box">${S.join(" ")}</div>`;
+  if (kind === "full") return `<div class="box stem-box">${S.join(" ")}</div>`;
   if (kind === "blank") {
     const b = q.blank, T = toks(P, b.si), last = T[b.to], punct = (last.match(/[,.;:?!”’"')]*$/) || [""])[0];
     const post = T.slice(b.to + 1).join(" ");
-    return `<div class="box">${S.slice(0, b.si).join(" ")} ${esc(T.slice(0, b.from).join(" "))} <span class="blank"></span>${esc(punct)}${post ? " " + esc(post) : ""} ${S.slice(b.si + 1).join(" ")}</div>`;
+    return `<div class="box stem-box">${S.slice(0, b.si).join(" ")} ${esc(T.slice(0, b.from).join(" "))} <span class="blank"></span>${esc(punct)}${post ? " " + esc(post) : ""} ${S.slice(b.si + 1).join(" ")}</div>`;
   }
   if (kind === "order") {
     const O = q.order, j = a => a.map(i => S[i]).join(" ");
-    return `<div class="box">${j(O.given)}</div>` + ["A", "B", "C"].map(k => `<p><span class="olab">(${k})</span> ${j(O[k])}</p>`).join("");
+    return `<div class="box stem-box">${j(O.given)}</div>` + ["A", "B", "C"].map(k => `<p><span class="olab">(${k})</span> ${j(O[k])}</p>`).join("");
   }
-  if (kind === "summary") return `<div class="box">${S.join(" ")}</div><div style="text-align:center;font-weight:900">↓</div><div class="box">${esc(q.summary).replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
+  if (kind === "summary") return `<div class="box stem-box">${S.join(" ")}</div><div style="text-align:center;font-weight:900">↓</div><div class="box stem-box">${esc(q.summary).replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
   return "";
 }
 function optLabel(q, i) {
@@ -722,8 +725,8 @@ function gradeWrite(W, raw) {
 function drillWrite() {
   const d = st.dr, W = P.write[d.lv];
   let h = `<div class="tabs">` + P.write.map((w, i) => `<button class="${i === d.lv ? "on" : ""}" data-a="lv" data-v="${i}">Lv${w.lv} ${esc(w.name)}</button>`).join("") + `</div>`;
-  h += `<div class="box">${esc(W.ctx).replace("________", `<span class="blank"></span>`)}</div>`;
-  if (W.ko) h += `<div class="muted">우리말: ${esc(W.ko)}</div>`;
+  h += `<div class="box stem-box">${esc(W.ctx).replace("________", `<span class="blank"></span>`)}</div>`;
+  if (W.ko) h += `<div class="muted stem-ko">우리말: ${esc(W.ko)}</div>`;
   if (W.cond) h += `<div class="cond"><b>조건</b><ol>${W.cond.map(c => `<li>${esc(c)}</li>`).join("")}</ol></div>`;
   if (W.bogi) h += `<div class="muted">&lt;보기&gt;</div><div class="bogi">${W.bogi.map(b => `<span>${esc(b)}</span>`).join("")}</div>`;
   const res = d.res[d.lv];
@@ -743,7 +746,7 @@ function drillWrite() {
     h += `<details><summary>모범 답안 + 채점 기준</summary><div class="fix">${W.ans.map(a => esc(a)).join("<br>")}</div><div class="rubric">${esc(W.rub)}</div></details>`;
   }
   const isDone = !!doneMap()[st.pid];
-  h += `<div class="row dock">${isDone ? `<span class="pill g">완료한 지문</span>` : `<button class="btn pri" data-a="finish">지문 완료</button>`}<button class="btn ghost" data-a="back">목록</button></div>`;
+  h += `<div class="row">${isDone ? `<span class="pill g">완료한 지문</span>` : `<button class="btn pri" data-a="finish">지문 완료</button>`}<button class="btn ghost" data-a="back">목록</button></div>`;
   return h;
 }
 
@@ -944,3 +947,39 @@ render();
 
 /* 합격전략 알약(화면표준 2절 — 탭 위 12px · 오른쪽 16px): 공용 엔진이 늦게 올라오므로 load 뒤에 한 번 더 */
 window.addEventListener("load", function () { try { zsFab(); } catch (err) { } });
+
+/* 화면표준 14절: 「합격 전략」은 떠 있는 알약 대신 오늘 화면의 줄에서 연다. 공용 창(zzstrat.js)은 그대로 두고 열릴 때 덮개 style 만 넣는다 */
+document.addEventListener("click", function (e) { var a = e.target.closest && e.target.closest("[data-zs]"); if (a) { e.preventDefault(); if (window.ZZSTRAT) window.ZZSTRAT.open("eng_hs"); } });
+  (function(){
+    var P="#E5202E", PI="#B61D29", PS="rgba(229,32,46,.10)";
+    var 덮개=[
+      "#zs,#zst,#zsy{--zs-bg:#FFFFFF;--zs-card:#FFFFFF;--zs-line:#E6E8EC;--zs-red:"+P+";--zs-blue:#F08A91;--zs-gold:#7C818C;--zs-soft:#F1F3F6;--zs-tx:#111419;--zs-sub:#5F6670}",
+      "#zs .top .t{letter-spacing:0;font-size:13px}#zs .top button{border-radius:12px}",
+      "#zs section{border-radius:18px;box-shadow:none}",
+      "#zs .chip{border-radius:999px;background:#F1F3F6;color:#333941}#zs .chip.r{background:"+PS+";color:"+PI+"}",
+      "#zs .pk{border:1px solid #E6E8EC;border-radius:14px;background:#FFFFFF}#zs .pk.on{border-color:"+P+";background:"+PS+";box-shadow:none}",
+      "#zs .tg{border-radius:999px;font-size:11.5px}#zs .tg.a{background:"+P+";color:#fff}#zs .tg.l{background:rgba(229,32,46,.16);color:"+PI+";border:0}#zs .tg.g{background:#F1F3F6;color:#5F6670;border:0}",
+      "#zs .sc,#zs .sc.s,#zs .sc.d{border:1px solid #E6E8EC;border-radius:14px}#zs .sc.on{background:#FFFFFF}#zs .sc .rb{border-radius:999px}",
+      "#zs .sc.s .rb,#zs .sc.s .bar b{background:"+P+"}#zs .sc.d .rb,#zs .sc.d .bar b{background:#F08A91}#zs .sc.b .bar b{background:#B4BAC3}",
+      "#zs .det{border-radius:14px}#zs .vl i{background:"+P+";border-radius:50%}",
+      "#zs .gauge .fl{background:rgba(229,32,46,.14)}#zs .stack i.s{background:"+P+"}#zs .stack i.d{background:#F08A91}#zs .stack i.b{background:#B4BAC3}",
+      "#zs .gp b{background:"+P+";border-radius:12px}#zs .gp::after{background:"+P+"}#zs .gb .gline b{border-radius:12px}",
+      "#zs .gc .cd{border:1px solid #E6E8EC;border-radius:14px}",
+      "#zs .gc .cd:nth-child(1){--c:"+P+"!important}#zs .gc .cd:nth-child(2){--c:#F08A91!important}#zs .gc .cd:nth-child(3){--c:#F6B3B8!important}#zs .gc .cd:nth-child(n+4){--c:#9CA3AF!important}",
+      "#zs .gc .cg{border-radius:999px}#zs .hit{border-radius:14px}",
+      "#zs .q li.a::before{background:"+P+";border-color:"+P+"}#zs .q .st.f{color:"+PI+";border-color:"+PI+"}#zs .q{border-radius:14px}",
+      "#zs .go{background:"+P+";border-radius:12px}#zst .nx{background:"+P+";border-radius:12px}#zst .hole{border-radius:14px}#zst .bub{border-radius:18px}",
+      "#zsy .nx{background:"+P+"}#zsy .pg i{background:"+P+"}#zsy .pk{border:1px solid #E6E8EC}#zsy .pk.on{border-color:"+P+";box-shadow:none}",
+      "#zsy .end button{border:1px solid "+P+";color:"+PI+"}#zsy .end .main{background:"+P+";color:#fff}"
+    ].join("\n");
+    function 글(root){ var w=document.createTreeWalker(root,NodeFilter.SHOW_TEXT,null,false), n; while((n=w.nextNode())){ if(n.nodeValue.indexOf("합격전략")>=0) n.nodeValue=n.nodeValue.replace(/합격전략/g,"합격 전략"); } }
+    function 말(){
+      document.querySelectorAll(".zs-fab,.zs-btn").forEach(function(el){ 글(el); });
+      var h=document.getElementById("zs-host");
+      if(h && h.shadowRoot){
+        if(!h.shadowRoot.getElementById("mj-ov")){ var st=document.createElement("style"); st.id="mj-ov"; st.textContent=덮개; h.shadowRoot.appendChild(st); }
+        글(h.shadowRoot);
+      }
+    }
+    new MutationObserver(말).observe(document.documentElement,{childList:true,subtree:true}); 말();
+  })();

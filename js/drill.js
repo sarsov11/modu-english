@@ -117,7 +117,7 @@
     const n = gs.set.length, it = gs.set[gs.i], done = it.pick !== undefined, ok = done && it.pick === it.ai;
     const nDone = gs.set.filter(x => x.pick !== undefined).length, last = gs.i >= n - 1;
     let h = top(gtitle(gs.gid), (gs.i + 1) + " / " + n, "glist") + `<div class="wrap"><div style="margin-top:14px">${ENGQ.prog(nDone, n)}</div>`;
-    h += ENGQ.meta(`${gs.i + 1}번 문제`, { tag: gs.rec ? "" : "복습" }) + `<p class="tq-stem">${esc(it.q)}</p><div class="box">${gSentHtml(it, done)}</div><div style="height:18px"></div>`;
+    h += ENGQ.meta(`${gs.i + 1}번 문제`, { tag: gs.rec ? "" : "복습" }) + `<p class="tq-stem">${esc(it.q)}</p><div class="box stem-box">${gSentHtml(it, done)}</div><div style="height:18px"></div>`;
     h += ENGQ.choices(it.opts, { attr: 'data-d="gpick"', dis: done, label: i => esc(it.opts[i]), cls: i => done ? (i === it.ai ? "is-ok" : i === it.pick ? "is-no" : "") : "" });
     if (done) {
       h += ENGQ.exp((ok ? "" : `<div class="why">${esc(shortWhy(it))}</div>`) + gExplain(it), `정답 : ${it.t === "c" ? esc(it.opts[it.ai]) : (it.ai + 1) + "번"}`);
@@ -144,7 +144,7 @@
     h += `<div style="margin-top:8px">` + gs.set.map((it, k) => {
       const ok = it.pick === it.ai;
       const sent = it.t === "c" ? it.pre + it.a + it.post : it.s;
-      return `<div class="exp"><span class="pill ${ok ? "g" : "r"}">${ok ? "✓" : "✗"} ${k + 1}</span> ${esc(sent)}` +
+      return `<div class="exp"><span class="pill ${ok ? "g" : "r"}">${ok ? "✓" : "✗"} ${k + 1}</span> <span class="passage-s">${esc(sent)}</span>` +
         (ok ? "" : `<details><summary>해설 보기</summary>${gExplain(it)}</details>`) + `</div>`;
     }).join("") + `</div>`;
     return h + `</div>`;
@@ -232,8 +232,8 @@
 
   function writeBlock(it) {
     const st = it.st, res = it.res;
-    let h = `<div class="box">${esc(it.ctx).replace("________", `<span class="blank"></span>`)}</div>`;
-    if (it.ko) h += `<div class="muted">우리말: ${esc(it.ko)}</div>`;
+    let h = `<div class="box stem-box">${esc(it.ctx).replace("________", `<span class="blank"></span>`)}</div>`;
+    if (it.ko) h += `<div class="muted stem-ko">우리말: ${esc(it.ko)}</div>`;
     if (it.cond) h += `<div class="cond"><b>조건</b><ol>${it.cond.map(c => `<li>${esc(c)}</li>`).join("")}</ol></div>`;
     if (it.bogi) h += `<div class="muted">&lt;보기&gt;</div><div class="bogi">${it.bogi.map(b => `<span>${esc(b)}</span>`).join("")}</div>`;
     if (it.tiles) {
@@ -254,7 +254,7 @@
   }
   function efBlock(it) {
     const st = it.st, res = it.res, T = toks(it.s), [a, b] = it.w;
-    let h = `<p class="tq-stem">어법상 틀린 부분을 눌러 바르게 고쳐 쓰기</p><div class="box efs">`;
+    let h = `<p class="tq-stem">어법상 틀린 부분을 눌러 바르게 고쳐 쓰기</p><div class="box efs stem-box">`;
     if (res) {
       h += esc(T.slice(0, a).join(" ")) + (a ? " " : "") + `<del>${esc(T.slice(a, b + 1).join(" "))}</del> <ins>${esc(it.a)}</ins>` + (b + 1 < T.length ? " " : "") + esc(T.slice(b + 1).join(" "));
     } else h += T.map((w, i) => `<button class="etk ${st.sel === i ? "sel" : ""}" data-d="esel" data-v="${i}">${esc(w)}</button>`).join(" ");
@@ -271,7 +271,7 @@
     const st = it.st, res = it.res;
     const hint = (k) => it.ans[k][0] + "_".repeat(Math.max(3, it.ans[k].length - 1));
     const sum = esc(it.sum).replace(/\(([AB])\)\s*_+/g, (m, ab) => `<b>(${ab})</b> <span class="hint">${esc(hint(ab === "A" ? 0 : 1))}</span>`);
-    let h = `<p class="tq-stem">본문 요약문의 빈칸 완성 (첫 글자 제시)</p><div class="box">${esc(it.txt)}</div><div style="text-align:center;font-weight:900">↓</div><div class="box">${sum}</div>`;
+    let h = `<p class="tq-stem">본문 요약문의 빈칸 완성 (첫 글자 제시)</p><div class="box stem-box">${esc(it.txt)}</div><div style="text-align:center;font-weight:900">↓</div><div class="box stem-box">${sum}</div>`;
     ["a", "b"].forEach((k, j) => {
       h += `<div class="row" style="margin:8px 0"><b style="min-width:30px">(${"AB"[j]})</b><input class="inp" style="flex:1" data-di="sm${k}" value="${esc(st[k])}" ${res ? "disabled" : ""} autocomplete="off" autocapitalize="off" spellcheck="false"></div>`;
     });
