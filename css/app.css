@@ -604,3 +604,5 @@ html body .tm-next s{font-size:14px}
 }
 .card.zsrow{padding:0 18px}
 .card.zsrow .li{margin:0;border-top:0;padding:0}
+.okw,.hint,.mk,del,ins,b{font-weight:800}
+.bgh>span:first-child,.chip b,.wl .mn b,.st-i b,.dnum,.dlab,.mark{font-weight:800}

@@ -646,7 +646,7 @@ function origPassage(q) {
   } else if (q.type === "빈칸") {
     h += `<div class="box stem-box">${esc(q.p || "").replace(/_{2,}/g, `<span class="blank"></span>`)}</div>`;
   } else if (q.type === "요약") {
-    h += `<div class="box stem-box">${esc(q.p || "")}</div><div style="text-align:center;font-weight:900">↓</div><div class="box stem-box">${esc(q.sum || "").replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
+    h += `<div class="box stem-box">${esc(q.p || "")}</div><div style="text-align:center;font-weight:800">↓</div><div class="box stem-box">${esc(q.sum || "").replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
   } else h += `<div class="box stem-box">${markPassage(q.p || "", q.ul)}</div>`;
   if (q.note) h += `<div class="note-small">${esc(q.note)}</div>`;
   return h;
@@ -663,7 +663,7 @@ function passageHtml(q) {
     const O = q.order, j = a => a.map(i => S[i]).join(" ");
     return `<div class="box stem-box">${j(O.given)}</div>` + ["A", "B", "C"].map(k => `<p><span class="olab">(${k})</span> ${j(O[k])}</p>`).join("");
   }
-  if (kind === "summary") return `<div class="box stem-box">${S.join(" ")}</div><div style="text-align:center;font-weight:900">↓</div><div class="box stem-box">${esc(q.summary).replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
+  if (kind === "summary") return `<div class="box stem-box">${S.join(" ")}</div><div style="text-align:center;font-weight:800">↓</div><div class="box stem-box">${esc(q.summary).replace(/\(([AB])\)/g, "<b>($1)</b>")}</div>`;
   return "";
 }
 function optLabel(q, i) {

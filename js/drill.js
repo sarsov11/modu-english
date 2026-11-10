@@ -271,7 +271,7 @@
     const st = it.st, res = it.res;
     const hint = (k) => it.ans[k][0] + "_".repeat(Math.max(3, it.ans[k].length - 1));
     const sum = esc(it.sum).replace(/\(([AB])\)\s*_+/g, (m, ab) => `<b>(${ab})</b> <span class="hint">${esc(hint(ab === "A" ? 0 : 1))}</span>`);
-    let h = `<p class="tq-stem">본문 요약문의 빈칸 완성 (첫 글자 제시)</p><div class="box stem-box">${esc(it.txt)}</div><div style="text-align:center;font-weight:900">↓</div><div class="box stem-box">${sum}</div>`;
+    let h = `<p class="tq-stem">본문 요약문의 빈칸 완성 (첫 글자 제시)</p><div class="box stem-box">${esc(it.txt)}</div><div style="text-align:center;font-weight:800">↓</div><div class="box stem-box">${sum}</div>`;
     ["a", "b"].forEach((k, j) => {
       h += `<div class="row" style="margin:8px 0"><b style="min-width:30px">(${"AB"[j]})</b><input class="inp" style="flex:1" data-di="sm${k}" value="${esc(st[k])}" ${res ? "disabled" : ""} autocomplete="off" autocapitalize="off" spellcheck="false"></div>`;
     });
