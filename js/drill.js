@@ -11,7 +11,7 @@
     s.onerror = () => rej(new Error("파일을 불러오지 못했다"));
     document.head.appendChild(s);
   });
-  const top = (name, extra, back) => `<div class="top">${back ? `<button class="back" data-d="${back}">‹</button>` : ""}<div class="brand">${esc(name)}</div>${extra ? `<div class="pid">${extra}</div>` : ""}</div>`;
+  const top = (name, extra, back) => back ? window.TOPBAR({ back: `data-d="${back}"`, title: name, right: extra }) : window.TOPBAR({ sub: name + (extra ? " " + extra : "") });
   const pct = (c, t) => (t ? Math.round(100 * c / t) : null);
   const rateCls = r => (r === null ? "" : r >= 80 ? "g" : r < 60 ? "r" : "");
   function bl(total, st, cur) {   /* 징검다리: st(i) 0 미응답, 1 맞음, 2 틀림 */
@@ -39,9 +39,9 @@
         gs.loading = true;
         loadJs("drill_grammar.js", () => window.MYE_DG).then(() => { gs.loading = false; render(); }).catch(e => { gs.loading = false; gs.err = e.message; render(); });
       }
-      return gs.err ? errView("문법", gs.err) : loadingView("문법");
+      return gs.err ? errView("문법 드릴", gs.err) : loadingView("문법 드릴");
     }
-    if (gs.screen === "load") return loadingView("문법", "glist");
+    if (gs.screen === "load") return loadingView("문법 드릴", "glist");
     if (gs.screen === "q") return gQ();
     if (gs.screen === "res") return gRes();
     return gList();
@@ -52,12 +52,14 @@
     const rate = g => (st[g] && st[g][1] ? st[g][0] / st[g][1] : null);
     const any = Object.keys(st).some(g => st[g][1]);
     const sort = gs.sort || (any ? "weak" : "cat");
+    let firstG = null;
     const row = (g, showCat) => {
+      const isRec = firstG === null; if (isRec) firstG = g;
       const n = ids[g][3], r = pct((st[g] || [0, 0])[0], (st[g] || [0, 0])[1]);
       const cat = DG.cats.find(c => c[0] === ids[g][2]);
-      return `<button class="it" data-d="gstart" data-v="${esc(g)}"><span class="tt">${esc(ids[g][0])}${showCat && cat ? `<span class="sub">${esc(cat[1])}</span>` : ""}</span><span class="pill">${n}문항</span><span class="pill ${rateCls(r)}">${r === null ? "–" : r + "%"}</span></button>`;
+      return `<button class="it" data-d="gstart" data-v="${esc(g)}"><span class="tt">${esc(ids[g][0])}${showCat && cat ? `<span class="sub">${esc(cat[1])}</span>` : ""}</span>${isRec ? `<span class="recp">추천</span>` : ""}<span class="pill">${n}문항</span><span class="pill ${rateCls(r)}">${r === null ? "–" : r + "%"}</span></button>`;
     };
-    let h = top("문법", DG.n + "문항") + `<div class="wrap">`;
+    let h = top("문법 드릴", DG.n + "문항") + `<div class="wrap">`;
     if (gs.err) h += `<div class="msg no">${esc(gs.err)}</div>`;
     h += `<div class="seg"><button class="${sort === "weak" ? "on" : ""}" data-d="gsort" data-v="weak">약한 순</button><button class="${sort === "cat" ? "on" : ""}" data-d="gsort" data-v="cat">범주</button></div>`;
     h += `<div class="muted" style="display:flex;justify-content:flex-end;gap:14px"><span>문항 수</span><span>내 정답률</span></div>`;
@@ -113,20 +115,15 @@
   }
   function gQ() {
     const n = gs.set.length, it = gs.set[gs.i], done = it.pick !== undefined, ok = done && it.pick === it.ai;
-    let h = top(gtitle(gs.gid), (gs.i + 1) + " / " + n, "glist") + `<div class="wrap">`;
-    h += bl(n, k => (gs.set[k].pick === undefined ? 0 : gs.set[k].pick === gs.set[k].ai ? 1 : 2), gs.i);
-    h += `<div class="muted">${n - gs.i - (done ? 1 : 0)} 남음${gs.rec ? "" : " / 오답 모아풀기"}</div>`;
-    h += `<div class="qhead" style="margin-top:12px">${esc(it.q)}</div><div class="box">${gSentHtml(it, done)}</div>`;
-    h += `<div class="opts">` + it.opts.map((o, i) => {
-      let c = ""; if (done) { if (i === it.ai) c = "ok"; else if (i === it.pick) c = "no"; }
-      return `<button class="opt ${c}" data-d="gpick" data-v="${i}" ${done ? "disabled" : ""}>${it.t === "c" ? esc(o) : CIR[i] + " " + esc(o)}</button>`;
-    }).join("") + `</div>`;
+    const nDone = gs.set.filter(x => x.pick !== undefined).length, last = gs.i >= n - 1;
+    let h = top(gtitle(gs.gid), (gs.i + 1) + " / " + n, "glist") + `<div class="wrap"><div style="margin-top:14px">${ENGQ.prog(nDone, n)}</div>`;
+    h += ENGQ.meta(`${gs.i + 1}번 문제`, { tag: gs.rec ? "" : "복습" }) + `<p class="tq-stem">${esc(it.q)}</p><div class="box">${gSentHtml(it, done)}</div><div style="height:18px"></div>`;
+    h += ENGQ.choices(it.opts, { attr: 'data-d="gpick"', dis: done, label: i => esc(it.opts[i]), cls: i => done ? (i === it.ai ? "is-ok" : i === it.pick ? "is-no" : "") : "" });
     if (done) {
-      h += `<div class="msg ${ok ? "ok" : "no"}" style="margin-top:10px">${ok ? "✓ 정답" : "오답 → 정답 " + esc(it.opts[it.ai])}</div>`;
-      if (!ok) h += `<div class="why">${esc(shortWhy(it))}</div>`;
-      h += `<details><summary>해설 보기</summary>${gExplain(it)}</details>`;
-      h += `<div class="row"><button class="btn pri" data-d="gnext">${gs.i < n - 1 ? "다음" : "결과"}</button></div>`;
+      h += ENGQ.exp((ok ? "" : `<div class="why">${esc(shortWhy(it))}</div>`) + gExplain(it), `정답 : ${it.t === "c" ? esc(it.opts[it.ai]) : (it.ai + 1) + "번"}`);
     }
+    h += ENGQ.bar({ key: "g/" + gs.gid + "/" + gs.i, exp: done, pos: gs.i + 1, total: n,
+      submit: { attr: 'data-d="gnext"', label: last ? "결과" : "다음", dis: !done } });
     return h + `</div>`;
   }
   function gPick(i) {
@@ -143,7 +140,7 @@
     const n = gs.set.length, sc = gs.set.filter(x => x.pick === x.ai).length, bad = gs.set.filter(x => x.pick !== x.ai);
     let h = top(gtitle(gs.gid), "", "glist") + `<div class="wrap"><h2>결과</h2><div class="today"><b>${sc} / ${n}</b></div>` +
       bl(n, k => (gs.set[k].pick === gs.set[k].ai ? 1 : 2), -1);
-    h += `<div class="row">` + (bad.length ? `<button class="btn pri" data-d="gwrong">오답 모아풀기</button>` : "") + `<button class="btn ${bad.length ? "ghost" : "pri"}" data-d="gagain">↻ 재도전</button><button class="btn ghost" data-d="glist">목록</button></div>`;
+    h += `<div class="row">` + (bad.length ? `<button class="btn pri" data-d="gwrong">복습</button>` : "") + `<button class="btn ${bad.length ? "ghost" : "pri"}" data-d="gagain">↻ 재도전</button><button class="btn ghost" data-d="glist">목록</button></div>`;
     h += `<div style="margin-top:8px">` + gs.set.map((it, k) => {
       const ok = it.pick === it.ai;
       const sent = it.t === "c" ? it.pre + it.a + it.post : it.s;
@@ -174,9 +171,9 @@
         ws.loading = true;
         loadJs("drill_writing.js", () => window.MYE_DW).then(() => { ws.loading = false; render(); }).catch(e => { ws.loading = false; ws.err = e.message; render(); });
       }
-      return ws.err ? errView("서술형", ws.err) : loadingView("서술형");
+      return ws.err ? errView("서술형 드릴", ws.err) : loadingView("서술형 드릴");
     }
-    if (ws.screen === "load") return loadingView("서술형", "wback");
+    if (ws.screen === "load") return loadingView("서술형 드릴", "wback");
     if (ws.screen === "q") return wQ();
     if (ws.screen === "res") return wRes();
     return wSetup();
@@ -184,7 +181,7 @@
   function wSetup() {
     const D = window.MYE_DW, s = ws.scope, ck = ckey();
     if (s.k === "g" && ws.tab !== "ef") { s.k = "all"; s.v = ""; }
-    let h = top("서술형", D.n + "문항") + `<div class="wrap">`;
+    let h = top("서술형 드릴", D.n + "문항") + `<div class="wrap">`;
     if (ws.err) h += `<div class="msg no">${esc(ws.err)}</div>`;
     h += `<div class="tabs w4">` + WTABS.map(([k, n]) => `<button class="${ws.tab === k ? "on" : ""}" data-d="wtab" data-v="${k}">${n}</button>`).join("") + `</div>`;
     if (ws.tab === "cw") h += `<div class="seg">` + [2, 3, 4].map(l => `<button class="${ws.lv === l ? "on" : ""}" data-d="wlv" data-v="${l}">Lv${l}</button>`).join("") + `</div>`;
@@ -257,7 +254,7 @@
   }
   function efBlock(it) {
     const st = it.st, res = it.res, T = toks(it.s), [a, b] = it.w;
-    let h = `<div class="qhead">어법상 틀린 부분을 눌러 바르게 고쳐 쓰기</div><div class="box efs">`;
+    let h = `<p class="tq-stem">어법상 틀린 부분을 눌러 바르게 고쳐 쓰기</p><div class="box efs">`;
     if (res) {
       h += esc(T.slice(0, a).join(" ")) + (a ? " " : "") + `<del>${esc(T.slice(a, b + 1).join(" "))}</del> <ins>${esc(it.a)}</ins>` + (b + 1 < T.length ? " " : "") + esc(T.slice(b + 1).join(" "));
     } else h += T.map((w, i) => `<button class="etk ${st.sel === i ? "sel" : ""}" data-d="esel" data-v="${i}">${esc(w)}</button>`).join(" ");
@@ -274,7 +271,7 @@
     const st = it.st, res = it.res;
     const hint = (k) => it.ans[k][0] + "_".repeat(Math.max(3, it.ans[k].length - 1));
     const sum = esc(it.sum).replace(/\(([AB])\)\s*_+/g, (m, ab) => `<b>(${ab})</b> <span class="hint">${esc(hint(ab === "A" ? 0 : 1))}</span>`);
-    let h = `<div class="qhead">본문 요약문의 빈칸 완성 (첫 글자 제시)</div><div class="box">${esc(it.txt)}</div><div style="text-align:center;font-weight:900">↓</div><div class="box">${sum}</div>`;
+    let h = `<p class="tq-stem">본문 요약문의 빈칸 완성 (첫 글자 제시)</p><div class="box">${esc(it.txt)}</div><div style="text-align:center;font-weight:900">↓</div><div class="box">${sum}</div>`;
     ["a", "b"].forEach((k, j) => {
       h += `<div class="row" style="margin:8px 0"><b style="min-width:30px">(${"AB"[j]})</b><input class="inp" style="flex:1" data-di="sm${k}" value="${esc(st[k])}" ${res ? "disabled" : ""} autocomplete="off" autocapitalize="off" spellcheck="false"></div>`;
     });
@@ -286,13 +283,12 @@
     return h;
   }
   function wQ() {
-    const n = ws.set.length, it = cur(), res = it.res;
-    let h = top("서술형", (ws.i + 1) + " / " + n, "wback") + `<div class="wrap">`;
-    h += bl(n, k => (ws.set[k].res ? (ws.set[k].res.ok ? 1 : 2) : 0), ws.i);
-    h += `<div class="muted">${n - ws.i - (res ? 1 : 0)} 남음${ws.rec ? "" : " / 오답 모아풀기"}</div>`;
-    h += `<div style="margin-top:10px"><span class="tag o">${esc(wTypeName(it))}</span><span class="muted">${esc(it.l)}</span></div>`;
+    const n = ws.set.length, it = cur(), res = it.res, nDone = ws.set.filter(x => x.res).length, last = ws.i >= n - 1;
+    let h = top("서술형 드릴", (ws.i + 1) + " / " + n, "wback") + `<div class="wrap"><div style="margin-top:14px">${ENGQ.prog(nDone, n)}</div>`;
+    h += ENGQ.meta(`${ws.i + 1}번 문제`, { tag: esc(wTypeName(it)) + " · " + esc(it.l) + (ws.rec ? "" : " · 복습") });
     h += it.t === "ef" ? efBlock(it) : it.t === "sm" ? smBlock(it) : writeBlock(it);
-    h += `<div class="row">` + (res ? `<button class="btn pri" data-d="wnext">${ws.i < n - 1 ? "다음" : "결과"}</button>` : `<button class="btn pri" data-d="wgrade2">채점</button>`) + `</div>`;
+    h += ENGQ.bar({ key: "w/" + ws.i + "/" + (it.p || "") + (it.k || ""), exp: !!res, pos: ws.i + 1, total: n,
+      submit: res ? { attr: 'data-d="wnext"', label: last ? "결과" : "다음" } : { attr: 'data-d="wgrade2"', label: "제출" } });
     return h + `</div>`;
   }
   function wGrade() {
@@ -315,8 +311,8 @@
   }
   function wRes() {
     const n = ws.set.length, sc = ws.set.filter(x => x.res && x.res.ok).length, bad = ws.set.filter(x => !(x.res && x.res.ok));
-    let h = top("서술형", "", "wback") + `<div class="wrap"><h2>결과</h2><div class="today"><b>${sc} / ${n}</b></div>` + bl(n, k => (ws.set[k].res && ws.set[k].res.ok ? 1 : 2), -1);
-    h += `<div class="row">` + (bad.length ? `<button class="btn pri" data-d="wwrong">오답 모아풀기</button>` : "") + `<button class="btn ${bad.length ? "ghost" : "pri"}" data-d="wagain">↻ 재도전</button><button class="btn ghost" data-d="wback">범위</button></div><div style="margin-top:8px">`;
+    let h = top("서술형 드릴", "", "wback") + `<div class="wrap"><h2>결과</h2><div class="today"><b>${sc} / ${n}</b></div>` + bl(n, k => (ws.set[k].res && ws.set[k].res.ok ? 1 : 2), -1);
+    h += `<div class="row">` + (bad.length ? `<button class="btn pri" data-d="wwrong">복습</button>` : "") + `<button class="btn ${bad.length ? "ghost" : "pri"}" data-d="wagain">↻ 재도전</button><button class="btn ghost" data-d="wback">범위</button></div><div style="margin-top:8px">`;
     h += ws.set.map((it, k) => {
       const ok = it.res && it.res.ok;
       let body = "";
