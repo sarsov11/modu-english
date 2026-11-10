@@ -8,7 +8,7 @@
     const s = document.createElement("script"); s.src = src; s.onload = () => (ready() ? res() : rej(new Error("데이터 없음"))); s.onerror = () => rej(new Error("파일을 불러오지 못했다")); document.head.appendChild(s);
   });
   const prep = () => Promise.all([
-    loadJs("js/tera-map.js?v=1110m", () => window.TERA_MAP),
+    loadJs("js/tera-map.js?v=1110n", () => window.TERA_MAP),
     loadJs("data/drill_grammar.js", () => window.MYE_DG),
     loadJs("data/drill_writing.js", () => window.MYE_DW)
   ]);
@@ -34,10 +34,7 @@
     return Object.values(types).sort((a, b) => (b.c.평가원 + b.c.학평 + b.c.EBS) - (a.c.평가원 + a.c.학평 + a.c.EBS)).map(t => {
       const rd = t.r.평가원[1] + t.r.학평[1] + t.r.EBS[1], dn = t.r.평가원[0] + t.r.학평[0] + t.r.EBS[0];
       const avg = evalY.size ? Math.round(t.c.평가원 / evalY.size * 10) / 10 : 0;
-      const leaves = [["평가원", "모평·수능", evalY.size], ["학평", "학평", hakY.size], ["EBS", "EBS 교재", 0]].map(([g, nm, ys]) => ({
-        name: nm, avg: ys ? Math.round(t.c[g] / ys * 10) / 10 : 0, pct: pct(t.r[g][0], t.r[g][1]), go: go(t, g)
-      }));
-      return { id: "t:" + t.n, name: t.n, avg, pct: pct(dn, rd), leaves, go: go(t) };
+      return { id: "t:" + t.n, name: t.n, avg, pct: pct(dn, rd), go: go(t) };   /* 출처(모평·수능/학평/EBS)는 세부 단원이 아니라 leaves 를 주지 않는다(11-10 3.1) */
     });
   }
 
