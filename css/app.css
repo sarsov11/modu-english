@@ -717,4 +717,28 @@ html body .anp .seg.an4 button.on{box-shadow:inset 0 0 0 1.5px var(--sel-line);b
 /* 1111c: 고르는 단추(seg · tabs)의 고른 상태도 선택색으로. 지문별 테라에이전트 글의 「원 기출」 꼬리표 */
 html body .seg button.on,html body .tabs button.on{background:var(--sel-bg);color:var(--sel-ink);border-color:var(--sel-line);box-shadow:inset 0 0 0 1.5px var(--sel-line)}
 .agl dt small{display:block;font:500 11.5px/1.4 Pretendard,system-ui,sans-serif;color:#5F6670}
+/* 1111e: 앞 명사를 꾸미는 수식어 괄호 앞의 작은 화살표 */
+.tk .br .nar{font:700 13px/1 Pretendard,system-ui,sans-serif;font-style:normal;margin-right:1px;vertical-align:.25em;opacity:.75}
+.legend .nar{font-style:normal}
+/* ════════ 1111e 청록 단일톤 안(비교용 · html[data-theme="teal"] 일 때만): 색은 청록 하나, 진하기로만 구분. 오답 표시만 빨강을 남긴다 ════════ */
+html[data-theme="teal"]{--pt:#0F766E;--pt-2:#0B5F59;--pt-soft:rgba(15,118,110,.10);--pt-ink:#0B4F4A;
+  --green:#0B4F4A;--green-soft:rgba(15,118,110,.10);--yellow:rgba(15,118,110,.16);--yellow-soft:rgba(15,118,110,.07);--yellow-line:#0F766E;--yellow-dk:#0F766E;
+  --sel-bg:#E3F2F0;--sel-line:#0F766E;--sel-ink:#0B4F4A;--sel-dot:#0F766E;
+  --tq-p:#0F766E;--tq-ps:#EEF7F6;--tq-pi:#0B4F4A;--ink:#12302D;--line:#DCE7E5}
+html[data-theme="teal"] .emap{--pt:#0F766E}
+html[data-theme="teal"] .tk.hS .w,html[data-theme="teal"] .anp .tk.hS .w{background:rgba(15,118,110,.26);border-bottom:2px solid #0B4F4A}
+html[data-theme="teal"] .tk.hV .w,html[data-theme="teal"] .anp .tk.hV .w,html[data-theme="teal"] .pick .tk.mV .w{background:rgba(15,118,110,.09);border-bottom:2px dashed #0F766E}
+html[data-theme="teal"] .tk.hS.hV .w,html[data-theme="teal"] .anp .tk.hS.hV .w{background:linear-gradient(90deg,rgba(15,118,110,.26) 50%,rgba(15,118,110,.09) 50%);border-bottom:2px solid #0B4F4A}
+html[data-theme="teal"] .tk.hl .w,html[data-theme="teal"] .etk.sel{background:rgba(15,118,110,.16)}
+html[data-theme="teal"] .anp .tk .br,html[data-theme="teal"] .anp .legend b,html[data-theme="teal"] .anp .notes .n,html[data-theme="teal"] .anp .lb.S{color:#0B4F4A}
+html[data-theme="teal"] .anp .lb.V{color:#0F766E}
+html[data-theme="teal"] .agm{background:#0F766E}
+html[data-theme="teal"] .agl dt,html[data-theme="teal"] .whym b,html[data-theme="teal"] .hotn b,html[data-theme="teal"] .vbar b,html[data-theme="teal"] .scbar b{color:#0B4F4A}
+html[data-theme="teal"] .agc{background:#F2F8F7;border-color:#DCE7E5}
+html[data-theme="teal"] .lk{color:#0B4F4A}
+html[data-theme="teal"] .shot,html[data-theme="teal"] .whot{color:#0B4F4A;border-color:#7FB8B2}
+html[data-theme="teal"] .hotn{border-left-color:#0F766E;background:#EEF7F6}
+html[data-theme="teal"] .anp{border-color:#7FB8B2;box-shadow:0 6px 18px rgba(15,118,110,.08)}
+html[data-theme="teal"] .fullp .sb.seen{border-bottom-color:#7FB8B2}
+html[data-theme="teal"] .wlist.pickw .wl .ps{background:#E3F2F0;color:#0B4F4A}
 @media (max-width:480px){.steps.free .st{min-width:40px}.steps.free .lab{font-size:12px;white-space:nowrap}.fullp{font-size:17px}.agl dt{width:64px}.seg.an4 button{font-size:11.5px}}

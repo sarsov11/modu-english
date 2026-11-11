@@ -244,6 +244,29 @@ function wrongWords() {
 
 /* ───────── 공통: 문장 토큰 렌더 (시안 그대로 + 명령문·단편 보호) ───────── */
 const toks = (P0, si) => P0.sentences[si].t.split(" ");
+/* 수식어 괄호가 앞 명사를 꾸미는 경우(1111 대표님 「작은 화살표로」). 원고에 꾸밈 대상 표시가 없어 규칙으로 가린다. 확실한 것만 잡는다:
+   of 구 · 관계절(that which who whom whose where, 전치사 + which/whom) · 분사구(-ing/-ed, 불규칙 과거분사) · 주어 바로 뒤의 전치사구.
+   앞말이 동사 · 부사 · 기능어이거나 쉼표로 끊겼으면 잡지 않는다 */
+const NM = {
+  rel: new Set("that which who whom whose where".split(" ")),
+  ofx: new Set("because out instead ahead regardless irrespective think thought thinking consist consists consisted aware capable afraid full proud tired fond sure short free independent void dispose disposed deprived rid accused convinced reminded informed made composed speak spoke talk heard hear know knew dream approve".split(" ")),
+  func: new Set("a an the this that these those it he she they we you i me him her them us is are was were be been being am do does did have has had will would can could may might must shall should not and or but so if as than then very too also just only even still more most much many some any all both each every no such to of in on at by for with from into onto over under about after before between through during without within against among around toward towards up down off out quite rather often always never usually sometimes there here when while because although though since unless until whether".split(" ")),
+  pp: new Set("made known given taken seen done found built written held called named based used shown told left set put kept paid sent brought bought caught taught felt meant led lost born worn drawn driven grown thrown chosen spoken broken hidden forgotten".split(" ")),
+  prep: new Set("in on at by for with from into onto over under about after before between through during without within against among around toward towards across behind beyond".split(" ")),
+  cl: w => w.replace(/^[^A-Za-z]+|[^A-Za-z'’-]+$/g, "").toLowerCase()
+};
+function nmodSet(s) {
+  if (s._nm) return s._nm;
+  const T = s.t.split(" "), vh = new Set(), sh = new Set(), out = new Set();
+  s.main.concat(s.sub).forEach(c => { c.v.h.forEach(i => vh.add(i)); c.s.h.forEach(i => sh.add(i)); });
+  s.br.forEach(([a, b, k]) => {
+    if (k !== "m" || a === 0) return;
+    const pr = T[a - 1], prev = NM.cl(pr), first = NM.cl(T[a]), second = NM.cl(T[a + 1] || "");
+    if (/[,;:(—–-]$/.test(pr) || !prev || NM.func.has(prev) || vh.has(a - 1) || /ly$/.test(prev)) return;
+    if (first === "of" ? !NM.ofx.has(prev) : NM.rel.has(first) || (NM.prep.has(first) && /^(which|whom|whose)$/.test(second)) || (/(ing|ed)$/.test(first) && first.length > 4) || NM.pp.has(first) || (NM.prep.has(first) && sh.has(a - 1))) out.add(a);
+  });
+  return (s._nm = out);
+}
 function renderSent(si, o = {}) {
   const s = P.sentences[si], T = toks(P, si);
   const lab = {}, cls = {};
@@ -269,12 +292,13 @@ function renderSent(si, o = {}) {
   const tokHtml = (w, i) => {
     let pre = "", post = "";
     if (o.brackets) {
+      if (nmodSet(s).has(i)) pre += `<i class="nar" title="앞 명사를 꾸민다">←</i>`;
       s.br.filter(b => b[0] === i).sort((x, y) => (y[1] - y[0]) - (x[1] - x[0])).forEach(b => pre += b[2] === "m" ? "(" : "[");
       s.br.filter(b => b[1] === i).sort((x, y) => (x[1] - x[0]) - (y[1] - y[0])).forEach(b => post += b[2] === "m" ? ")" : "]");
     }
-    let wtxt = esc(w), punct = "";
+    let wtxt = esc(w), punct = ""; const preH = pre;
     if (post) { const m = w.match(/^(.*?)([,.;:?!”’"')]*)$/); wtxt = esc(m[1]); punct = esc(m[2]); }
-    return `<span class="tk${cls[i] || ""}" data-i="${i}"><span class="w">${pre ? `<span class="br">${pre}</span>` : ""}${wtxt}${post ? `<span class="br">${post}</span>` : ""}${punct}</span></span>`;
+    return `<span class="tk${cls[i] || ""}" data-i="${i}"><span class="w">${preH ? `<span class="br">${preH}</span>` : ""}${wtxt}${post ? `<span class="br">${post}</span>` : ""}${punct}</span></span>`;
   };
   for (let i = 0; i < T.length; i++) {
     const l = lab[i] || "";
@@ -301,7 +325,7 @@ const TABI = {
   rec: SVGI(`<path d="M5 19.5V12M12 19.5V5M19 19.5V9"/>`)
 };
 /* o.back: 뒤로 단추의 data 속성 문자열 · o.title: 안쪽 화면 이름 · o.right: 오른쪽 진행 글 · o.sub: 바깥 화면의 과목 옆 글 */
-const HNAV = [["home", "오늘"], ["map", "합격 지도"], ["explore", "기출"], ["drill", "드릴"], ["words", "단어장"], ["rec", "기록"]];
+const HNAV = [["home", "오늘"], ["map", "출제 지도"], ["explore", "기출"], ["drill", "드릴"], ["words", "단어장"], ["rec", "기록"]];
 function topBar(o) {
   o = o || {};
   if (o.back) return `<div class="top"><button class="back" ${o.back} aria-label="뒤로">‹</button><div class="ttl">${esc(o.title || "")}</div><div class="sp"></div>${o.right ? `<div class="hprog">${o.right}</div>` : ""}</div>`;
@@ -320,7 +344,7 @@ function renderBase() {
   if (nav.tab === "p") { root.innerHTML = passageView(); document.body.classList.add("notab"); return; }
   if (nav.tab === "wtest") { root.innerHTML = wtestView(); document.body.classList.add("notab"); return; }
   const body = { home, map: mapView, explore, drill: drillHub, gram: () => DRILL.gram(), writ: () => DRILL.writ(), words: wordsTab, rec: recTab, scope: scopeView }[nav.tab]();
-  root.innerHTML = body + `<div class="nav">` + [["home", "오늘"], ["map", "합격 지도"], ["explore", "기출"], ["drill", "드릴"], ["words", "단어장"], ["rec", "기록"]]
+  root.innerHTML = body + `<div class="nav">` + [["home", "오늘"], ["map", "출제 지도"], ["explore", "기출"], ["drill", "드릴"], ["words", "단어장"], ["rec", "기록"]]
     .map(([k, n]) => `<button class="${nav.tab === k || (k === "drill" && (nav.tab === "gram" || nav.tab === "writ")) ? "on" : ""}" data-a="tab" data-v="${k}">${TABI[k]}<span>${n}</span></button>`).join("") + `</div>`;
   document.body.classList.toggle("notab", !!root.querySelector(".top .back"));
 }
@@ -474,13 +498,13 @@ function home() {
 /* ───────── 합격 지도 (화면표준 11절): 줄 = 기출 유형 · 문법 · 서술형 · 단어. 어댑터 js/eng-map.js ───────── */
 const RECP = `<span class="recp">추천</span>`;
 function mapView() {
-  return topBar({ sub: "합격 지도" }) + `<div class="wrap mapw"><div id="emap" class="emap"></div></div>`;
+  return topBar({ sub: "출제 지도" }) + `<div class="wrap mapw"><div id="emap" class="emap"></div></div>`;
 }
 function mountMap() {
   const host = document.getElementById("emap"); if (!host) return;
   const go = () => window.ENGMAP && window.ENGMAP.mount(host);
   if (window.ENGMAP) return go();
-  const sc = document.createElement("script"); sc.src = "js/eng-map.js?v=1110p"; sc.onload = go; document.head.appendChild(sc);
+  const sc = document.createElement("script"); sc.src = "js/eng-map.js?v=1111e"; sc.onload = go; document.head.appendChild(sc);
 }
 /* ───────── 드릴: 문법 드릴 · 서술형 드릴 ───────── */
 function drillHub() {
@@ -651,7 +675,7 @@ function anPanel(si) {
   let h = `<div class="anp"><div class="anh"><span class="pill g">문장 ${si + 1} / ${N}</span><span class="sp"></span><button class="anx" data-a="senx" aria-label="분석 닫기">×</button></div>
     <div class="seg an4">` + AN_STEP.map((n, i) => `<button class="${i === k ? "on" : ""}" data-a="ank" data-v="${i}">${n}</button>`).join("") + `</div>`;
   h += renderSent(si, { brackets: k >= 1, sv: k >= 2, lab: true, hl });
-  if (k >= 1) h += `<div class="legend"><b>( )</b> 수식어 &nbsp; <b>[ ]</b> 명사절</div>`;
+  if (k >= 1) h += `<div class="legend"><b>( )</b> 수식어 &nbsp; <b>[ ]</b> 명사절${nmodSet(s).size ? ` &nbsp; <b>←( )</b> 앞 명사를 꾸밈` : ""}</div>`;
   if (k >= 2 && (s.frag || (s.main.length && !s.main[0].s.h.length))) h += `<div class="muted" style="margin-top:6px">${s.frag ? "S V 없음 → 단편" : "명령문 → S 생략"}</div>`;
   if (k >= 3) h += `<div class="ko passage-ko">${esc(s.ko)}</div>` + (s.notes.length ? `<ul class="notes">` + s.notes.map((n, i) => `<li class="${i === a.note ? "on" : ""}" data-a="note" data-v="${i}"><span class="n">${i + 1}</span><span><span class="k">${esc(n[2])}</span><br>${esc(n[3])}</span></li>`).join("") + `</ul>` : "");
   return h + `<div class="row"><button class="btn ghost" data-a="senmv" data-v="-1" ${si ? "" : "disabled"}>이전 문장</button><button class="btn ghost" data-a="senmv" data-v="1" ${si < N - 1 ? "" : "disabled"}>다음 문장</button></div></div>`;

@@ -1,5 +1,5 @@
 "use strict";
-/* 모두의 영어 — 합격 지도 어댑터 (화면표준 11절). 공용 js/tera-map.js 에 앱 자료를 groups → nodes → leaves 로 넘긴다.
+/* 모두의 영어 — 출제 지도 어댑터(이름 1111 대표님: 영어는 합격이 아니라 등급이라 「합격 지도」가 안 맞는다) (화면표준 11절). 공용 js/tera-map.js 에 앱 자료를 groups → nodes → leaves 로 넘긴다.
    줄 = 기출 유형 · 문법 · 서술형 · 단어. 해마다 문항 수(avg)는 평가원(모평·수능) 기출 문항 색인에서 센 값만 쓰고, 없는 줄은 비워 둔다.
    app.js 의 INDEX · LS · doneMap · weekWords 등과 drill.js 의 화면을 호출 시점에 쓴다. */
 (function () {
@@ -10,7 +10,7 @@
   const prep = () => Promise.all([
     loadJs("js/tera-map.js?v=1111d", () => window.TERA_MAP),
     loadJs("data/drill_grammar.js", () => window.MYE_DG),
-    loadJs("data/drill_writing.js", () => window.MYE_DW)
+    loadJs("data/gramfreq.js?v=1111e", () => window.MYE_GF).catch(() => { window.MYE_GF = {}; })
   ]);
   const pct = (c, t) => (t ? Math.round(100 * c / t) : 0);
   const fire = (a, v) => { const b = document.createElement("button"); b.dataset.a = a; if (v != null) b.dataset.v = v; root.appendChild(b); b.click(); b.remove(); };
@@ -33,8 +33,8 @@
     const go = (t, g) => () => { const id = next(t, g) || next(t); if (id) openPassage(id, "map"); else fire("tab", "explore"); };
     return Object.values(types).sort((a, b) => (b.c.평가원 + b.c.학평 + b.c.EBS) - (a.c.평가원 + a.c.학평 + a.c.EBS)).map(t => {
       const rd = t.r.평가원[1] + t.r.학평[1] + t.r.EBS[1], dn = t.r.평가원[0] + t.r.학평[0] + t.r.EBS[0];
-      const avg = evalY.size ? Math.round(t.c.평가원 / evalY.size * 10) / 10 : 0;
-      return { id: "t:" + t.n, name: t.n, avg, pct: pct(dn, rd), go: go(t) };   /* 출처(모평·수능/학평/EBS)는 세부 단원이 아니라 leaves 를 주지 않는다(11-10 3.1) */
+      const avg = evalY.size && t.c.평가원 ? Math.max(1, Math.round(t.c.평가원 / evalY.size)) : 0;
+      return { id: "t:" + t.n, name: t.n, avg, pct: pct(dn, rd), go: go(t), ty: t.n };   /* 출처(모평·수능/학평/EBS)는 세부 단원이 아니라 leaves 를 주지 않는다(11-10 3.1) */
     });
   }
 
@@ -43,8 +43,9 @@
     return DG.cats.map(([ck, cn, lst]) => {
       const leaves = lst.map(g => { const s = st[g] || [0, 0]; return { name: DG.ids[g][0], pct: pct(s[0], s[1]), g, go: () => { fire("tab", "gram"); later(() => { const b = document.querySelector('[data-d="gstart"][data-v="' + g + '"]'); if (b) { b.click(); return true; } }); } }; });
       const worst = leaves.slice().sort((a, b) => a.pct - b.pct)[0];
-      return { id: "g:" + ck, name: cn, pct: Math.round(leaves.reduce((s, l) => s + l.pct, 0) / Math.max(1, leaves.length)), leaves, go: worst && worst.go };
-    });
+      const GF = window.MYE_GF || {};
+      return { id: "g:" + ck, name: cn, pct: Math.round(leaves.reduce((s, l) => s + l.pct, 0) / Math.max(1, leaves.length)), leaves, go: worst && worst.go, f: lst.reduce((s, g) => s + (GF[g] || 0), 0) };
+    }).sort((a, b) => b.f - a.f).map((n, i, arr) => { const r = i / Math.max(1, arr.length); n.star = n.f ? (r < .2 ? 3 : r < .5 ? 2 : 1) : 1; return n; });
   }
 
   function writRow() {
@@ -76,9 +77,15 @@
     prep().then(() => {
       if (!document.body.contains(host)) return;
       const dd = typeof ddayInfo === "function" ? ddayInfo() : null;
-      const groups = [{ name: "기출 유형", nodes: typeRow() }, { name: "문법", nodes: gramRow() }, { name: "서술형", nodes: writRow() }, { name: "단어", nodes: wordRow() }];
+      /* 출제 지도(1111): 시험에 무엇이 얼마나 나오는지만 싣는다. 유형은 다섯 묶음으로 나눠 묶음마다 출제 비율이 보이게 하고,
+         문법은 평가원 지문에서 센 빈도로 별을 매긴다. 출제 자료가 없는 서술형 · 단어 줄은 뺐다(드릴 · 단어장 탭에 있다) */
+      const TG = [["대의 파악", ["목적", "심경", "주장", "요지", "주제", "제목"]], ["빈칸 추론", ["빈칸", "함의"]], ["글의 흐름", ["무관한문장", "순서", "삽입"]], ["어법 · 어휘", ["어법", "어휘", "지칭"]], ["요약 · 장문", ["요약", "장문"]]];
+      const TR = typeRow(), used = {};
+      const groups = TG.map(([name, ks]) => ({ name, nodes: TR.filter(n => ks.includes(n.ty) && (used[n.ty] = 1)) })).filter(g => g.nodes.length);
+      const rest = TR.filter(n => !used[n.ty]); if (rest.length) groups.push({ name: "그 밖의 유형", nodes: rest });
+      groups.push({ name: "문법", nodes: gramRow() });
       const o = {
-        title: "합격 지도", sub: "영어", mark: "star", dday: dd ? dd.txt : "", unit: "문항", groups,
+        title: "출제 지도", sub: "영어", mark: "star", dday: dd ? dd.txt : "", unit: "문항", groups,
         onStart: n => n.go && n.go(), onLeaf: l => l.go && l.go()
       };
       window.TERA_MAP.mount(host, o);
