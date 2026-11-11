@@ -721,24 +721,24 @@ html body .seg button.on,html body .tabs button.on{background:var(--sel-bg);colo
 .tk .br .nar{font:700 13px/1 Pretendard,system-ui,sans-serif;font-style:normal;margin-right:1px;vertical-align:.25em;opacity:.75}
 .legend .nar{font-style:normal}
 /* ════════ 1111e 청록 단일톤(대표님 확정 11-11): 색은 청록 하나, 진하기로만 구분. 오답 표시만 빨강을 남긴다 ════════ */
-html{--pt:#0F766E;--pt-2:#0B5F59;--pt-soft:rgba(15,118,110,.10);--pt-ink:#0B4F4A;
+html:root{--pt:#0F766E;--pt-2:#0B5F59;--pt-soft:rgba(15,118,110,.10);--pt-ink:#0B4F4A;
   --green:#0B4F4A;--green-soft:rgba(15,118,110,.10);--yellow:rgba(15,118,110,.16);--yellow-soft:rgba(15,118,110,.07);--yellow-line:#0F766E;--yellow-dk:#0F766E;
   --sel-bg:#E3F2F0;--sel-line:#0F766E;--sel-ink:#0B4F4A;--sel-dot:#0F766E;
   --tq-p:#0F766E;--tq-ps:#EEF7F6;--tq-pi:#0B4F4A;--ink:#12302D;--line:#DCE7E5}
-html .emap{--pt:#0F766E}
-html .tk.hS .w,html .anp .tk.hS .w{background:rgba(15,118,110,.26);border-bottom:2px solid #0B4F4A}
-html .tk.hV .w,html .anp .tk.hV .w,html .pick .tk.mV .w{background:rgba(15,118,110,.09);border-bottom:2px dashed #0F766E}
-html .tk.hS.hV .w,html .anp .tk.hS.hV .w{background:linear-gradient(90deg,rgba(15,118,110,.26) 50%,rgba(15,118,110,.09) 50%);border-bottom:2px solid #0B4F4A}
-html .tk.hl .w,html .etk.sel{background:rgba(15,118,110,.16)}
-html .anp .tk .br,html .anp .legend b,html .anp .notes .n,html .anp .lb.S{color:#0B4F4A}
-html .anp .lb.V{color:#0F766E}
-html .agm{background:#0F766E}
-html .agl dt,html .whym b,html .hotn b,html .vbar b,html .scbar b{color:#0B4F4A}
-html .agc{background:#F2F8F7;border-color:#DCE7E5}
-html .lk{color:#0B4F4A}
-html .shot,html .whot{color:#0B4F4A;border-color:#7FB8B2}
-html .hotn{border-left-color:#0F766E;background:#EEF7F6}
-html .anp{border-color:#7FB8B2;box-shadow:0 6px 18px rgba(15,118,110,.08)}
-html .fullp .sb.seen{border-bottom-color:#7FB8B2}
-html .wlist.pickw .wl .ps{background:#E3F2F0;color:#0B4F4A}
+html:root .emap{--pt:#0F766E}
+html:root .tk.hS .w,html:root .anp .tk.hS .w{background:rgba(15,118,110,.26);border-bottom:2px solid #0B4F4A}
+html:root .tk.hV .w,html:root .anp .tk.hV .w,html:root .pick .tk.mV .w{background:rgba(15,118,110,.09);border-bottom:2px dashed #0F766E}
+html:root .tk.hS.hV .w,html:root .anp .tk.hS.hV .w{background:linear-gradient(90deg,rgba(15,118,110,.26) 50%,rgba(15,118,110,.09) 50%);border-bottom:2px solid #0B4F4A}
+html:root .tk.hl .w,html:root .etk.sel{background:rgba(15,118,110,.16)}
+html:root .anp .tk .br,html:root .anp .legend b,html:root .anp .notes .n,html:root .anp .lb.S{color:#0B4F4A}
+html:root .anp .lb.V{color:#0F766E}
+html:root .agm{background:#0F766E}
+html:root .agl dt,html:root .whym b,html:root .hotn b,html:root .vbar b,html:root .scbar b{color:#0B4F4A}
+html:root .agc{background:#F2F8F7;border-color:#DCE7E5}
+html:root .lk{color:#0B4F4A}
+html:root .shot,html:root .whot{color:#0B4F4A;border-color:#7FB8B2}
+html:root .hotn{border-left-color:#0F766E;background:#EEF7F6}
+html:root .anp{border-color:#7FB8B2;box-shadow:0 6px 18px rgba(15,118,110,.08)}
+html:root .fullp .sb.seen{border-bottom-color:#7FB8B2}
+html:root .wlist.pickw .wl .ps{background:#E3F2F0;color:#0B4F4A}
 @media (max-width:480px){.steps.free .st{min-width:40px}.steps.free .lab{font-size:12px;white-space:nowrap}.fullp{font-size:17px}.agl dt{width:64px}.seg.an4 button{font-size:11.5px}}
