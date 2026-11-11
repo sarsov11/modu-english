@@ -39,8 +39,9 @@ function settingsCard(g, n) {
   <div class="card"><h3 style="margin-top:0">학습</h3>
     <div class="muted">학년</div><div class="seg">${[1, 2, 3].map(x => `<button class="${g === x ? "on" : ""}" data-a="grade" data-v="${x}">고${x}</button>`).join("")}</div>
     <div class="muted">하루 지문</div><div class="seg">${[3, 4].map(x => `<button class="${n === x ? "on" : ""}" data-a="count" data-v="${x}">${x}개</button>`).join("")}</div>
+    <div class="muted">지문에서 할 단계(기본 구성 · 지문마다 따로 바꿀 수 있어요)</div><div class="seg wrap">${STEP_KEYS.map((k, i) => `<button class="${planDef().includes(k) ? "on" : ""}" data-a="pdef" data-v="${k}">${STEPS[i]}</button>`).join("")}</div>
     <button class="li" data-zs="1"><span>합격 전략</span></button></div>`;
-}
+}/*1111선택형*/
 const INDEX = window.MYE_INDEX || [];
 const PIDX = {};   /* pid -> {e: 회차, p: [pid,번호,유형,ready]} */
 INDEX.forEach(e => e.p.forEach(p => { PIDX[p[0]] = { e, p }; }));
@@ -51,7 +52,10 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;",
 const range = (a, b) => { const r = []; for (let i = a; i <= b; i++) r.push(i); return r; };
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const CIRC = "①②③④⑤";
-const STEPS = ["단어", "분석", "확인", "양자택일", "유형", "서술형"];
+/* 1111 선택형 개편: 단계는 의무가 아니다. 지문마다 할 단계를 고르고(plan.<지문id>), 고르지 않으면 기본 구성(plan)을 쓴다. 배열은 서술형에서 떼어 따로 둔다 */
+const STEP_KEYS = ["voc", "an", "ck", "ch", "mcq", "arr", "wr"];
+const STEPS = ["단어", "분석", "확인", "양자택일", "객관식", "배열", "서술형"];
+const WRHOT = window.MYE_WRHOT || {};   /* 서술형 강추: { 지문id: [지문 강추 0|1, 강추 문항 색인, 문장 색인, 문법 표지] } — _패치/서술형강추.js */
 const pad2 = n => (n < 10 ? "0" : "") + n;
 const ymd = d => d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate());
 const weekStart = d => { const x = new Date(d.getFullYear(), d.getMonth(), d.getDate()); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return ymd(x); };
@@ -63,13 +67,43 @@ const nav = { tab: "home", back: "home", ex: { g: null, y: null, u: null }, load
 let st = null;                /* 현재 지문 진행 상태 */
 let WT = null;                /* 주말 단어 테스트 상태 */
 
+function planDef() { const a = LS.get("plan", null); const b = Array.isArray(a) ? a.filter(k => STEP_KEYS.includes(k)) : []; return b.length ? b : STEP_KEYS.slice(); }
+function planOf(pid) { const a = LS.get("plan." + pid, null); const b = Array.isArray(a) ? a.filter(k => STEP_KEYS.includes(k)) : []; return b.length ? b : planDef(); }
+function hasStep(k) {
+  if (k === "arr") return P.write.some(w => w.tiles);
+  if (k === "wr") return P.write.some(w => !w.tiles);
+  if (k === "ck") return P.checks.length > 0;
+  if (k === "ch") return !!(P.choice && P.choice.items.length);
+  if (k === "mcq") return P.orig.length + P.mcq.length > 0;
+  return true;
+}
+function actSteps() { const pl = planOf(st.pid); const a = STEP_KEYS.map((k, i) => i).filter(i => pl.includes(STEP_KEYS[i]) && hasStep(STEP_KEYS[i])); return a.length ? a : [1]; }
+function nextStep() { return actSteps().find(i => i > st.step); }
+function nextLabel() { const n = nextStep(); return n === undefined ? "지문 완료" : "다음: " + STEPS[n]; }
+function wList(kind) { return P.write.map((w, i) => i).filter(i => (kind === "arr") === !!P.write[i].tiles); }
+function enterStep() {
+  const a = actSteps(); if (!a.includes(st.step)) st.step = a.find(i => i > st.step) ?? a[0];
+  const k = STEP_KEYS[st.step];
+  if (k === "arr" || k === "wr") { const l = wList(k); if (!l.includes(st.dr.lv)) st.dr.lv = l[0]; }
+}
+function finishPassage() {
+  const dm = doneMap(); dm[st.pid] = Date.now(); LS.set("done", dm); markAtt();
+  const pr = LS.get("prog." + st.pid, {}); pr.done = true; LS.set("prog." + st.pid, pr);
+  nav.tab = nav.back || "home";
+}
+function goNext(skip) {
+  if (!skip) bump();
+  const n = nextStep();
+  if (n === undefined) { finishPassage(); return; }
+  st.step = n; enterStep(); saveProg(); window.scrollTo(0, 0);
+}
 function freshSt(pid) {
   const prog = LS.get("prog." + pid, null);
-  const max = prog ? Math.min(prog.max || 0, 5) : 0;
+  const max = prog ? Math.min(prog.max || 0, 6) : 0;
   return {
-    pid, step: Math.min(max, 5) === 0 ? 0 : max, maxStep: max,
-    voc: { phase: "list", queue: [], cur: 0, pick: null, opts: [], wrong: 0 },
-    an: { si: 0, k: 0, note: -1 },
+    pid, step: prog && prog.cur != null ? Math.min(prog.cur, 6) : 0, maxStep: max, did: (prog && prog.did) || {}, planOpen: !LS.get("plan." + pid, null) && !prog,
+    voc: { phase: "list", sel: {}, words: [], queue: [], cur: 0, pick: null, opts: [], wrong: 0 },
+    an: { si: -1, k: 3, note: -1, seen: {}, bg: false },
     ck: { i: 0, ph: "S", found: { S: [], V: [] }, pop: [], flash: null, miss: 0, msg: "", ok: false, pick: null, score: 0 },
     dr: { ch: {}, graded: false, q: 0, pick: {}, lv: 0, tiles: {}, text: {}, res: {} }
   };
@@ -84,9 +118,10 @@ function svInit(c) {
 function saveProg() {
   if (!st) return;
   const old = LS.get("prog." + st.pid, {});
-  LS.set("prog." + st.pid, { max: Math.max(old.max || 0, st.maxStep), ts: Date.now(), done: !!old.done });
+  LS.set("prog." + st.pid, { max: Math.max(old.max || 0, st.maxStep), cur: st.step, did: st.did, ts: Date.now(), done: !!old.done });
 }
-function bump(n) { st.maxStep = Math.max(st.maxStep, n); saveProg(); markAtt(); }
+/* 지금 단계를 끝낸 것으로 적는다(건너뛴 단계는 적지 않는다) */
+function bump() { st.did[STEP_KEYS[st.step]] = 1; st.maxStep = Math.max(st.maxStep, st.step); saveProg(); markAtt(); }
 
 /* ───────── 데이터 지연 로딩 ───────── */
 function loadSrc(uid) {
@@ -105,7 +140,7 @@ function openPassage(pid, back) {
   if (!it || !it.p[3]) return;
   nav.loading = true; nav.err = ""; nav.tab = "p"; nav.back = back || "home"; render();
   loadSrc(it.e.u).then(d => {
-    P = d[pid]; P.wordsAll = P.wordsAll || P.words || []; P.words = P.wordsAll.filter(lvOk); st = newSt(pid); nav.loading = false; window.scrollTo(0, 0); render();
+    P = d[pid]; P.wordsAll = P.wordsAll || P.words || []; P.words = P.wordsAll.filter(lvOk); st = newSt(pid); enterStep(); nav.loading = false; window.scrollTo(0, 0); render();
   }).catch(e => { nav.loading = false; nav.err = e.message; render(); });
 }
 
@@ -121,20 +156,25 @@ function readyGrade(g) {
 function todayIds() {
   const key = ymd(new Date()), g = readyGrade(LS.get("grade", 3)), n = LS.get("count", 4);
   const t = LS.get("today", null), done = doneMap();
-  const ids = (t && t.date === key && t.g === g && t.n === n) ? t.ids.slice() : [];
+  const sc = scopeOn() ? scopeMap() : null, sk = sc ? Object.keys(sc).sort().join(",") : "";
+  const ids = (t && t.date === key && t.g === g && t.n === n && (t.sk || "") === sk) ? t.ids.slice() : [];
   const before = ids.length;
   for (const e of INDEX) {              /* INDEX 는 최근 회차 순 */
     if (ids.length >= n) break;
-    if (e.g !== g) continue;
-    for (const p of e.p) { if (ids.length >= n) break; if (p[3] && !done[p[0]] && !ids.includes(p[0])) ids.push(p[0]); }
+    if (!sc && e.g !== g) continue;
+    for (const p of e.p) { if (ids.length >= n) break; if (p[3] && !done[p[0]] && !ids.includes(p[0]) && (!sc || sc[p[0]])) ids.push(p[0]); }
   }
-  if (ids.length !== before || !t || t.date !== key) LS.set("today", { date: key, g, n, ids });
+  if (ids.length !== before || !t || t.date !== key || (t.sk || "") !== sk) LS.set("today", { date: key, g, n, ids, sk });
   return ids;
 }
+/* 내 시험 범위(내신): 회차와 문항을 골라 담는다. scope = { 지문id: 1 } · scopeOn = 오늘 지문을 범위에서 낼지 */
+function scopeMap() { const m = LS.get("scope", {}); return m && typeof m === "object" ? m : {}; }
+function scopeN() { return Object.keys(scopeMap()).filter(id => PIDX[id]).length; }
+function scopeOn() { return !!LS.get("scopeOn", false) && scopeN() > 0; }
 function statusOf(pid) {
   if (doneMap()[pid]) return { t: "완료", c: "g" };
   const pr = LS.get("prog." + pid, null);
-  if (pr && pr.max > 0) return { t: STEPS[Math.min(pr.max, 5)] + " 단계", c: "" };
+  if (pr && (pr.max > 0 || pr.cur > 0)) return { t: STEPS[Math.min(pr.cur != null ? pr.cur : pr.max, 6)] + " 단계", c: "" };
   return { t: "시작 전", c: "" };
 }
 
@@ -279,7 +319,7 @@ function render() { renderBase(); afterRender(); }
 function renderBase() {
   if (nav.tab === "p") { root.innerHTML = passageView(); document.body.classList.add("notab"); return; }
   if (nav.tab === "wtest") { root.innerHTML = wtestView(); document.body.classList.add("notab"); return; }
-  const body = { home, map: mapView, explore, drill: drillHub, gram: () => DRILL.gram(), writ: () => DRILL.writ(), words: wordsTab, rec: recTab }[nav.tab]();
+  const body = { home, map: mapView, explore, drill: drillHub, gram: () => DRILL.gram(), writ: () => DRILL.writ(), words: wordsTab, rec: recTab, scope: scopeView }[nav.tab]();
   root.innerHTML = body + `<div class="nav">` + [["home", "오늘"], ["map", "합격 지도"], ["explore", "기출"], ["drill", "드릴"], ["words", "단어장"], ["rec", "기록"]]
     .map(([k, n]) => `<button class="${nav.tab === k || (k === "drill" && (nav.tab === "gram" || nav.tab === "writ")) ? "on" : ""}" data-a="tab" data-v="${k}">${TABI[k]}<span>${n}</span></button>`).join("") + `</div>`;
   document.body.classList.toggle("notab", !!root.querySelector(".top .back"));
@@ -364,11 +404,21 @@ function passageView() {
   if (nav.loading) return topBar({ back: 'data-a="back"', title: "지문" }) + `<div class="loading">불러오는 중</div>`;
   if (nav.err) return topBar({ back: 'data-a="back"', title: "지문" }) + `<div class="loading">${esc(nav.err)}</div>`;
   let h = topBar({ back: 'data-a="back"', title: P.src.label, right: esc(P.type) }) + `<div class="wrap">`;
-  h += `<div class="steps">` + STEPS.map((n, i) => {
-    const c = i < st.maxStep ? "done" : i === st.step ? "on" : i > st.maxStep ? "lock" : "";
-    return (i ? `<div class="bar ${i <= st.maxStep ? "done" : ""}"></div>` : "") + `<button class="st ${c} ${i === st.step ? "on" : ""}" data-a="step" data-v="${i}"><span class="dot">${i < st.maxStep ? "✓" : i + 1}</span><span class="lab">${n}</span></button>`;
+  const act = actSteps(), nx = nextStep();
+  h += planBox();
+  h += `<div class="steps free">` + act.map((i, n) => {
+    const dn = !!st.did[STEP_KEYS[i]];
+    return (n ? `<div class="bar ${dn ? "done" : ""}"></div>` : "") + `<button class="st ${dn ? "done" : ""} ${i === st.step ? "on" : ""}" data-a="step" data-v="${i}"><span class="dot">${dn ? "✓" : n + 1}</span><span class="lab">${STEPS[i]}</span></button>`;
   }).join("") + `</div>`;
-  h += [vocabStep, analyze, check, drillChoice, drillMcq, drillWrite][st.step]();
+  if (nx !== undefined) h += `<div class="skiprow"><button class="skipl" data-a="skip">${STEPS[st.step]} 건너뛰기 ›</button></div>`;
+  h += [vocabStep, analyze, check, drillChoice, drillMcq, () => drillWrite("arr"), () => drillWrite("wr")][st.step]();
+  return h + `</div>`;
+}
+function planBox() {
+  const pl = planOf(st.pid), own = !!LS.get("plan." + st.pid, null), n = actSteps().length;
+  let h = `<div class="planb ${st.planOpen ? "open" : ""}"><button class="planh" data-a="plantog"><span>이 지문에서 할 것</span><span class="plann">${n}단계</span><span class="car">${st.planOpen ? "▲" : "▼"}</span></button>`;
+  if (st.planOpen) h += `<div class="planc">` + STEP_KEYS.map((k, i) => hasStep(k) ? `<button class="pchip ${pl.includes(k) ? "on" : ""}" data-a="pl" data-v="${k}" aria-pressed="${pl.includes(k)}">${STEPS[i]}</button>` : "").join("") + `</div>
+    <div class="planf"><span>이 지문에만 적용돼요.</span><button class="lk" data-a="plandef">다른 지문도 이 구성으로</button>${own ? `<button class="lk" data-a="planreset">기본 구성 쓰기</button>` : ""}</div>`;
   return h + `</div>`;
 }
 
@@ -404,13 +454,14 @@ function home() {
     <div class="muted" style="margin-top:8px">날짜</div><input id="dd" type="date" class="inp" value="${esc((LS.get("dday", {}) || {}).date || "")}">
     <div class="row"><button class="btn pri" data-a="ddsave">저장</button><button class="btn ghost" data-a="ddclear">삭제</button></div></div>` : ""}
   ${readyGrade(g) !== g ? `<div class="muted">고${g} 지문은 아직 열리지 않아 고${readyGrade(g)} 지문으로 학습합니다.</div>` : ""}
-  <section class="todayc"><h3>오늘 ${fmtMin(dPerMin())} · ${ids.length || n}지문</h3><p class="tsum">${dn} / ${ids.length || n} 완료 · 고${g} 기준</p>
+  <section class="todayc"><h3>오늘 ${fmtMin(dPerMin())} · ${ids.length || n}지문</h3><p class="tsum">${dn} / ${ids.length || n} 완료 · ${scopeOn() ? "내 시험 범위 " + scopeN() + "지문에서" : "고" + g + " 기준"}</p>
   <div class="plist">` + ids.map((id, k) => {
     const it = PIDX[id], s = statusOf(id), now1 = !done[id] && ids.findIndex(x => !done[x]) === k;
     return `<button class="stp ${now1 ? "now" : ""} ${done[id] ? "done" : ""}" data-a="open" data-v="${id}"><span class="n">${done[id] ? "✓" : k + 1}</span><span class="tx"><b>${esc(it.e.n)} ${esc(it.p[1])}번</b><span>${esc(it.p[2])}</span></span><span class="m">${s.t}</span></button>`;
   }).join("") + `</div>
   <button class="btn pri full" data-a="open" data-v="${ids.find(x => !done[x]) || ids[0] || ""}" ${ids.length ? "" : "disabled"}>시작</button></section>
   <div class="stat2"><div class="card"><b>${Object.keys(done).length}</b><span>완료 지문</span></div><div class="card"><b>${streakDays()}</b><span>연속 출석일</span></div></div>
+  <div class="card zsrow"><button class="li" data-a="tab" data-v="scope"><span>내 시험 범위${scopeN() ? ` <small class="lin">${scopeN()}지문${scopeOn() ? " · 오늘 지문에 반영 중" : ""}</small>` : ` <small class="lin">내신 범위의 회차 · 문항만 담기</small>`}</span></button></div>
   <div class="card zsrow"><button class="li" data-zs="1"><span>합격 전략</span></button></div>
   <h3>이번 주 출석</h3>${attWeek()}${attMonth()}
   <div class="card"><h3 style="margin-top:0">주말 단어 테스트</h3>
@@ -447,7 +498,7 @@ function explore() {
   if (ex.g) crumb.push(`고${ex.g}`); if (ex.y) crumb.push(ex.y + "학년도");
   if (ex.u) { const e = INDEX.find(x => x.u === ex.u); crumb.push(e ? e.n : ""); }
   if (crumb.length) h += `<div class="crumb"><button data-a="exback">‹</button>${esc(crumb.join(" / "))}</div>`;
-  else h += `<h2>학년</h2>`;
+  else h += `<div class="card zsrow"><button class="li" data-a="tab" data-v="scope"><span>내 시험 범위 <small class="lin">${scopeN() ? scopeN() + "지문 담음" : "회차를 열고 문항 오른쪽 동그라미를 누르면 담겨요"}</small></span></button></div><h2>학년</h2>`;
   if (ex.g && !ex.u && !cnt(INDEX.filter(e => e.g === ex.g))[0]) h += `<div class="muted" style="margin:10px 0">고${ex.g} 지문은 아직 열리지 않았습니다.</div>`;
   const badge = ([r, t]) => `<span class="pill ${r ? "g" : ""}">${r} / ${t}</span>`;
   const dn0 = doneMap(), open0 = list => list.some(e => e.p.some(p => p[3] && !dn0[p[0]]));
@@ -462,13 +513,28 @@ function explore() {
     const eu = es.find(e => open0([e]));
     h += `<div class="plist">` + es.map(e => `<button class="it" data-a="exu" data-v="${e.u}"><span class="tt">${esc(e.n)}</span>${eu && e.u === eu.u ? RECP : ""}${badge(cnt([e]))}</button>`).join("") + `</div>`;
   } else {
-    const e = INDEX.find(x => x.u === ex.u), done = doneMap();
+    const e = INDEX.find(x => x.u === ex.u), done = doneMap(), sc = scopeMap();
     const np = e.p.find(p => p[3] && !done[p[0]]);
+    const rd = e.p.filter(p => p[3]), inN = rd.filter(p => sc[p[0]]).length;
+    if (rd.length) h += `<div class="scbar"><span>시험 범위에 <b>${inN}</b> / ${rd.length}문항</span><button class="lk" data-a="scall" data-v="${e.u}">${inN === rd.length ? "모두 빼기" : "이 회차 모두 담기"}</button><button class="lk" data-a="tab" data-v="scope">내 시험 범위</button></div>`;
     h += `<div class="plist">` + e.p.map(p => p[3]
-      ? `<button class="it ${done[p[0]] ? "done" : ""}" data-a="open" data-v="${p[0]}" data-back="explore"><span class="no">${esc(p[1])}</span><span class="tt">${esc(p[2])}</span>${np && p[0] === np[0] ? RECP : ""}<span class="pill ${statusOf(p[0]).c}">${statusOf(p[0]).t}</span></button>`
+      ? `<div class="itw ${sc[p[0]] ? "insc" : ""}"><button class="it ${done[p[0]] ? "done" : ""}" data-a="open" data-v="${p[0]}" data-back="explore"><span class="no">${esc(p[1])}</span><span class="tt">${esc(p[2])}${(WRHOT[p[0]] || [])[0] ? `<span class="whot">서술형 강추</span>` : ""}</span>${np && p[0] === np[0] ? RECP : ""}<span class="pill ${statusOf(p[0]).c}">${statusOf(p[0]).t}</span></button><button class="scb ${sc[p[0]] ? "on" : ""}" data-a="sc" data-v="${p[0]}" aria-pressed="${!!sc[p[0]]}" aria-label="시험 범위에 ${sc[p[0]] ? "담김" : "담기"}">${sc[p[0]] ? "✓" : ""}</button></div>`
       : `<div class="it off"><span class="no">${esc(p[1])}</span><span class="tt">${esc(p[2])}</span><span class="pill">준비 중</span></div>`).join("") + `</div>`;
   }
   return h + `</div>`;
+}
+function scopeView() {
+  const sc = scopeMap(), done = doneMap(), on = scopeOn(), only = !!nav.schot;
+  let h = topBar({ back: 'data-a="tab" data-v="explore"', title: "내 시험 범위", right: scopeN() + "지문" }) + `<div class="wrap">`;
+  if (!scopeN()) return h + `<h2>내 시험 범위</h2><div class="muted">학교 시험에 들어가는 회차와 문항만 골라 담으세요. 기출에서 회차를 열고 문항 오른쪽 동그라미를 누르면 담깁니다.</div><div class="row"><button class="btn pri full" data-a="tab" data-v="explore">기출에서 고르기</button></div></div>`;
+  h += `<div class="card"><h3 style="margin-top:0">오늘 지문</h3><div class="seg"><button class="${on ? "on" : ""}" data-a="scon" data-v="1">시험 범위에서 내기</button><button class="${on ? "" : "on"}" data-a="scon" data-v="0">학년 기준으로 내기</button></div>
+    <div class="seg" style="margin-top:10px"><button class="${only ? "" : "on"}" data-a="schot" data-v="0">전체</button><button class="${only ? "on" : ""}" data-a="schot" data-v="1">서술형 강추만</button></div></div>`;
+  INDEX.forEach(e => {
+    const ps = e.p.filter(p => sc[p[0]] && p[3] && (!only || (WRHOT[p[0]] || [])[0])); if (!ps.length) return;
+    h += `<h3>${esc(e.n)} <small class="lin">${ps.length}문항</small></h3><div class="plist">` + ps.map(p =>
+      `<div class="itw insc"><button class="it ${done[p[0]] ? "done" : ""}" data-a="open" data-v="${p[0]}" data-back="scope"><span class="no">${esc(p[1])}</span><span class="tt">${esc(p[2])}${(WRHOT[p[0]] || [])[0] ? `<span class="whot">서술형 강추</span>` : ""}</span><span class="pill ${statusOf(p[0]).c}">${statusOf(p[0]).t}</span></button><button class="scb on" data-a="sc" data-v="${p[0]}" aria-pressed="true" aria-label="시험 범위에서 빼기">✓</button></div>`).join("") + `</div>`;
+  });
+  return h + `<div class="row"><button class="btn ghost full" data-a="tab" data-v="explore">회차 · 문항 더 담기</button></div></div>`;
 }
 
 /* ───────── 단어장 · 기록 ───────── */
@@ -476,6 +542,7 @@ function wordsTab() {
   const all = LS.get("words", {}), wr = LS.get("wrong", {}), wk = weekWords();
   const keys = Object.keys(all).sort();
   let h = topBar({ sub: "단어장 " + keys.length }) + `<div class="wrap">`;
+  { const kn = LS.get("know", {}), kv = Object.values(kn); if (kv.length) h += `<div class="stat2"><div class="card"><b>${kv.filter(x => x === 1).length}</b><span>아는 단어</span></div><div class="card"><b>${kv.filter(x => x === 0).length}</b><span>외울 단어</span></div></div>`; }
   if (wk.length) h += `<h2>이번 주</h2>` + wk.map(w => `<div class="wbox">${wline(w)}</div>`).join("");
   if (!keys.length) h += `<div class="muted" style="margin-top:18px">아직 모은 단어가 없습니다.</div>`;
   { const nw = dayWordsN(); h += `<div class="row"><button class="btn pri full" data-a="${nw ? "wstart" : "tab"}" data-v="${nw ? "" : "home"}">${nw ? "단어 테스트" : "오늘"}</button></div>`; }
@@ -500,16 +567,25 @@ function recTab() {
 
 /* ───────── 1 단어 (지문 단어 · 주말 테스트 공용) ───────── */
 function curV() { return nav.tab === "wtest" ? WT : st.voc; }
-function curWords() { return nav.tab === "wtest" ? WT.words : P.words; }
+function curWords() { return nav.tab === "wtest" ? WT.words : st.voc.words; }
+const dockNext = () => `<div class="row dock"><button class="btn pri" data-a="nxt">${nextLabel()}</button></div>`;
+/* 고른 단어 = 외울 단어(0), 안 고른 단어 = 아는 단어(1). know = { 원형: 0|1 } */
+function recordKnow() {
+  const v = st.voc, k = LS.get("know", {}); P.words.forEach((w, i) => { k[w.b || w.en] = v.sel[i] ? 0 : 1; }); LS.set("know", k);
+  if (window.RESEARCH && RESEARCH.log) { try { RESEARCH.log("word_pick", { pid: P.id, pick: P.words.filter((w, i) => v.sel[i]).map(w => w.b || w.en), know: P.words.filter((w, i) => !v.sel[i]).map(w => w.b || w.en) }); } catch (e) { } }
+}
 function vocabStep() {
   const v = st.voc;
-  if (!P.words.length) return `<h2>단어</h2><div class="muted">고${LS.get("grade", 3)} 기준 새로 익힐 단어 없음</div><div class="row dock"><button class="btn pri" data-a="vskip">분석</button></div>`;
+  if (!P.words.length) return `<h2>단어</h2><div class="muted">고${LS.get("grade", 3)} 기준 새로 익힐 단어 없음</div>` + dockNext();
   if (v.phase === "list") {
-    return `<h2>단어 ${P.words.length}</h2><div class="wlist">` + P.words.map(w => `<div class="w">${wline(w)}</div>`).join("") + `</div>
-    <div class="row dock"><button class="btn pri" data-a="vstart">테스트</button></div>`;
+    const n = Object.keys(v.sel).length;
+    return `<h2>외울 단어 고르기</h2><div class="muted">모르는 단어만 누르세요. 고른 단어만 시험 봐요.</div>
+    <div class="vbar"><span><b>${n}</b> / ${P.words.length} 고름</span><button class="lk" data-a="vall">${n === P.words.length ? "모두 풀기" : "모두 고르기"}</button></div>
+    <div class="wlist pickw">` + P.words.map((w, i) => `<button class="w ${v.sel[i] ? "sel" : ""}" data-a="vsel" data-v="${i}" aria-pressed="${!!v.sel[i]}"><span class="ckb">${v.sel[i] ? "✓" : ""}</span>${wline(w)}</button>`).join("") + `</div>
+    <div class="row dock"><button class="btn pri" data-a="vstart" ${n ? "" : "disabled"}>${n ? "고른 " + n + "개 시험" : "외울 단어를 고르세요"}</button><button class="btn ghost" data-a="vdone">${n ? "시험 건너뛰기" : "다 아는 단어예요"}</button></div>`;
   }
-  if (v.phase === "done") return `<h2>통과</h2><div class="muted">오답 ${v.wrong}회</div><div class="row"><button class="btn pri" data-a="step" data-v="1">분석</button></div>`;
-  return vocabQ(v, curWords());
+  if (v.phase === "done") return `<h2>단어 끝</h2><div class="muted">${v.words.length ? "외울 단어 " + v.words.length + "개는 단어장에 담았어요." : "외울 단어 없음"}${v.queue.length ? " 시험 오답 " + v.wrong + "회" : ""}</div><div class="row"><button class="btn ghost" data-a="vagain">다시 고르기</button></div>` + dockNext();
+  return vocabQ(v, curWords()) + `<div class="skiprow"><button class="skipl" data-a="vquit">시험 그만하기 ›</button></div>`;
 }
 function vocabQ(v, W) {
   const w = W[v.queue[v.cur]], left = v.queue.length - v.cur;
@@ -521,7 +597,9 @@ function vocabQ(v, W) {
 }
 function vMakeOpts(v, W) {
   const w = W[v.queue[v.cur]];
-  const others = shuffle([...new Set(W.filter(x => x.en !== w.en && x.ko !== w.ko).map(x => x.ko))]).slice(0, 3);
+  /* 고른 단어가 적어도 보기 네 개가 나오게, 지문 단어 전체에서 오답 보기를 채운다 */
+  const pool = nav.tab === "p" ? W.concat(P.wordsAll) : W;
+  const others = shuffle([...new Set(pool.filter(x => x.en !== w.en && x.ko !== w.ko).map(x => x.ko))]).slice(0, 3);
   v.opts = shuffle([w.ko, ...others]); v.pick = null;
 }
 function vStart(v, W) { v.phase = "test"; v.queue = shuffle(W.map((w, i) => i)); v.cur = 0; v.wrong = 0; v.first = {}; vMakeOpts(v, W); }
@@ -554,31 +632,35 @@ function wtestView() {
 /* ───────── 2 분석 ───────── */
 const AN_STEP = ["원문", "수식어 괄호", "S + V", "해석 + 문법"];
 function bgCard() {
-  const g = P.bg, open = st.an.bg !== false;
+  const g = P.bg, open = !!st.an.bg;
   return `<div class="bgc"><button class="bgh" data-a="bgtog"><span>배경지식</span><span class="bgt">${esc(g.t)}</span><span class="car">${open ? "▲" : "▼"}</span></button>` +
     (open ? `<div class="bgb">` + (window.DIAGRAM && window.DOSIK && DOSIK.english && DOSIK.english[P.id] ? /* 도식(2026-10-26 「모든 과목 개념을 도식으로」) — 배경지식 요약을 도식으로, 원문은 접는다 */ DOSIK.english[P.id].map(DIAGRAM.html).join("") + `<details class="bgsrc"><summary>원문</summary><div class="bgs concept-bgs">${esc(g.s)}</div></details>` : `<div class="bgs concept-bgs">${esc(g.s)}</div>`) + ((g.k || []).length ? `<div class="chips">` + g.k.map(c => `<span class="chip"><b>${esc(c.en)}</b> ${esc(c.ko)}<span class="cd">${esc(c.d)}</span></span>`).join("") + `</div>` : "") + `</div>` : "") + `</div>`;
 }
 function analyze() {
-  const a = st.an, s = P.sentences[a.si], k = a.k;
-  let h = `<div class="row" style="justify-content:space-between"><span class="muted">문장 ${a.si + 1} / ${P.sentences.length}</span><span class="pill">${AN_STEP[k]}</span></div>` + blocks(P.sentences.length, i => i < a.si, a.si);
-  const hl = a.note >= 0 ? range(s.notes[a.note][0], s.notes[a.note][1]) : [];
-  if (a.si === 0 && k === 0 && P.bg) h = bgCard() + h;
-  h += renderSent(a.si, { brackets: k >= 1, sv: k >= 2, lab: true, hl });
+  const a = st.an, N = P.sentences.length, hot = WRHOT[P.id] || [], seenN = Object.keys(a.seen).length;
+  let h = (P.bg ? bgCard() : "") + `<div class="fph"><h2>지문</h2><span class="muted">분석할 문장을 누르세요 · ${seenN} / ${N} 봄</span></div><div class="fullp">`;
+  P.sentences.forEach((s, i) => {
+    h += `<span class="sb ${i === a.si ? "on" : ""} ${a.seen[i] ? "seen" : ""}" role="button" tabindex="0" data-a="sen" data-v="${i}" aria-pressed="${i === a.si}"><sup>${i + 1}</sup>${esc(s.t)}${hot[2] === i ? `<em class="shot">서술형 강추</em>` : ""}</span> `;
+    if (i === a.si) h += anPanel(i);
+  });
+  return h + `</div>` + dockNext();
+}
+function anPanel(si) {
+  const a = st.an, s = P.sentences[si], k = a.k, N = P.sentences.length;
+  const hl = a.note >= 0 && s.notes[a.note] ? range(s.notes[a.note][0], s.notes[a.note][1]) : [];
+  let h = `<div class="anp"><div class="anh"><span class="pill g">문장 ${si + 1} / ${N}</span><span class="sp"></span><button class="anx" data-a="senx" aria-label="분석 닫기">×</button></div>
+    <div class="seg an4">` + AN_STEP.map((n, i) => `<button class="${i === k ? "on" : ""}" data-a="ank" data-v="${i}">${n}</button>`).join("") + `</div>`;
+  h += renderSent(si, { brackets: k >= 1, sv: k >= 2, lab: true, hl });
   if (k >= 1) h += `<div class="legend"><b>( )</b> 수식어 &nbsp; <b>[ ]</b> 명사절</div>`;
   if (k >= 2 && (s.frag || (s.main.length && !s.main[0].s.h.length))) h += `<div class="muted" style="margin-top:6px">${s.frag ? "S V 없음 → 단편" : "명령문 → S 생략"}</div>`;
-  if (k >= 3) {
-    h += `<div class="ko passage-ko">${esc(s.ko)}</div>` + (s.notes.length ? `<ul class="notes">` + s.notes.map((n, i) => `<li class="${i === a.note ? "on" : ""}" data-a="note" data-v="${i}"><span class="n">${i + 1}</span><span><span class="k">${esc(n[2])}</span><br>${esc(n[3])}</span></li>`).join("") + `</ul>` : "");
-  }
-  const last = a.si === P.sentences.length - 1;
-  h += `<div class="row">${a.si || k ? `<button class="btn ghost" data-a="anprev">이전</button>` : ""}` +
-    (k < 3 ? `<button class="btn pri" data-a="annext">${AN_STEP[k + 1]}</button>` : last ? `<button class="btn pri" data-a="anend">확인 문제</button>` : `<button class="btn pri" data-a="annext">다음 문장</button>`) + `</div>`;
-  return h;
+  if (k >= 3) h += `<div class="ko passage-ko">${esc(s.ko)}</div>` + (s.notes.length ? `<ul class="notes">` + s.notes.map((n, i) => `<li class="${i === a.note ? "on" : ""}" data-a="note" data-v="${i}"><span class="n">${i + 1}</span><span><span class="k">${esc(n[2])}</span><br>${esc(n[3])}</span></li>`).join("") + `</ul>` : "");
+  return h + `<div class="row"><button class="btn ghost" data-a="senmv" data-v="-1" ${si ? "" : "disabled"}>이전 문장</button><button class="btn ghost" data-a="senmv" data-v="1" ${si < N - 1 ? "" : "disabled"}>다음 문장</button></div></div>`;
 }
 
 /* ───────── 3 확인 ───────── */
 function check() {
   const c = st.ck;
-  if (c.i >= P.checks.length) return `<h2>확인 끝</h2><div class="today"><b>${c.score} / ${P.checks.length}</b><span class="muted">첫 시도 정답</span></div><div class="row dock"><button class="btn pri" data-a="go" data-v="3">양자택일</button></div>`;
+  if (c.i >= P.checks.length) return `<h2>확인 끝</h2><div class="today"><b>${c.score} / ${P.checks.length}</b><span class="muted">첫 시도 정답</span></div>` + dockNext();
   const q = P.checks[c.i];
   let h = `<div style="margin-top:14px">${ENGQ.prog(c.i, P.checks.length)}</div>`;
   if (q.type === "sv") {
@@ -589,14 +671,14 @@ function check() {
     h += `<div class="msg ${c.ok ? "ok" : "no"}">${c.msg}</div>`;
     if (c.ph !== "done") {
       h += `<div class="muted">명사절 주어 → 절 안 아무 단어</div>`;
-      if (c.miss >= 2) h += `<div class="row"><button class="btn ghost" data-a="svshow">정답 보기</button></div>`;
+      h += `<div class="row">${c.miss >= 2 ? `<button class="btn ghost" data-a="svshow">정답 보기</button>` : ""}<button class="btn ghost" data-a="cknext">이 문제 넘기기</button></div>`;
     } else h += `<div class="row dock"><button class="btn pri" data-a="cknext">다음</button></div>`;
   } else {
     const done = c.pick !== null;
     h += ENGQ.meta(`${c.i + 1}번 문제`) + `<p class="tq-stem">${esc(q.q)}</p>` + renderSent(q.si, { hl: range(q.r[0], q.r[1]) });
     h += `<div style="height:18px"></div>` + ENGQ.choices(q.o, { attr: 'data-a="ckpick"', dis: done, cls: i => done ? (i === q.a ? "is-ok" : i === c.pick ? "is-no" : "") : "" });
     if (done) h += ENGQ.exp(esc(q.why), `정답 : ${q.a + 1}번`);
-    h += ENGQ.bar({ key: P.id + "/c" + c.i, exp: done, next: done ? 'data-a="cknext"' : null, pos: c.i + 1, total: P.checks.length });
+    h += ENGQ.bar({ key: P.id + "/c" + c.i, exp: done, next: 'data-a="cknext"', pos: c.i + 1, total: P.checks.length });
   }
   return h;
 }
@@ -618,7 +700,7 @@ function drillChoice() {
       const right = d.ch[n] === it.a;
       return `<div class="exp"><span class="pill ${right ? "g" : "r"}">${n + 1} ${esc(it.k)}</span> ${it.o.filter((o, i) => i !== it.a).map(o => `<del>${esc(o)}</del>`).join(" ")} <ins>${esc(it.o[it.a])}</ins><br>${esc(it.why)}</div>`;
     }).join(""));
-    h += ENGQ.bar({ key: P.id + "/ch", exp: true, left: `<button class="tq-nav" type="button" data-a="chreset" aria-label="다시">↺</button>`, submit: { attr: 'data-a="go" data-v="4"', label: "유형" }, pos: sc, total: tot });
+    h += ENGQ.bar({ key: P.id + "/ch", exp: true, left: `<button class="tq-nav" type="button" data-a="chreset" aria-label="다시">↺</button>`, submit: { attr: 'data-a="nxt"', label: nextLabel() }, pos: sc, total: tot });
   }
   return h;
 }
@@ -677,24 +759,62 @@ function optText(q, i) {
   if (q.type === "무관한문장") return CIRC[i];
   return esc(t.replace(/^[①-⑤]\s*/, "")) || CIRC[i];
 }
+/* 테라에이전트: 이 지문이 어떤 문제로 나오기 좋은지(풀기 전 · 답은 가린다), 변형 문제가 왜 그렇게 만들어졌는지(푼 뒤). 지문 분석 자료에서 조립한다 */
+const LINKW = /^(However|But|Yet|Still|Instead|Therefore|Thus|So|Hence|Consequently|As a result|For example|For instance|In fact|Indeed|Moreover|Furthermore|In addition|Also|Similarly|Likewise|In contrast|By contrast|On the contrary|On the other hand|Nevertheless|Nonetheless|Otherwise|Then|Finally|In other words|That is|This|These|That|Those|Such|It|They|He|She)\b/;
+const linkOf = si => { const m = P.sentences[si].t.match(LINKW); return m ? m[1] : ""; };
+const posWord = si => si === 0 ? "글을 여는 첫 문장" : si === P.sentences.length - 1 ? "글을 맺는 마지막 문장" : `${P.sentences.length}문장 가운데 ${si + 1}번째 문장`;
+function topGram(n) { const c = {}; P.sentences.forEach(s => s.notes.forEach(x => { c[x[2]] = (c[x[2]] || 0) + 1; })); return Object.keys(c).sort((a, b) => c[b] - c[a]).slice(0, n); }
+function agentCard() {
+  const d = st.dr, open = d.ag !== false, rows = [], seen = {};
+  rows.push(["원 기출", `${esc(P.type)} 문제로 나왔던 지문이에요.`]);
+  P.mcq.forEach(m => {
+    if (seen[m.k]) return; seen[m.k] = 1;
+    if (m.p === "blank") rows.push(["빈칸", `빈칸 자리는 ${posWord(m.blank.si)}. ${m.blank.si === P.sentences.length - 1 ? "앞 내용을 한데 모으는 자리라 빈칸으로 자주 가려요." : m.blank.si === 0 ? "뒤 문장들이 이 문장을 풀어 주니, 뒤에서 단서를 찾으세요." : "바로 앞뒤 문장이 단서가 되는 자리예요."}`]);
+    else if (m.p === "order") { const L = P.sentences.map((s, i) => i ? linkOf(i) : "").filter(Boolean); rows.push(["순서", L.length ? `연결어 · 지시어로 시작하는 문장이 ${L.length}개(${esc([...new Set(L)].slice(0, 4).join(", "))}). 이런 글은 순서 · 삽입으로 내기 좋아요.` : "문장 첫머리에 연결어가 거의 없는 글이에요. 내용이 이어지는 흐름으로 순서를 잡아야 해요."]); }
+    else if (m.p === "summary") rows.push(["요약", `${P.sentences.length}문장이 한 가지 주장으로 모이는 글이라 한 문장 요약으로 바꿔 냈어요. 빈칸 두 곳은 글에서 되풀이되는 핵심어를 다른 말로 바꾼 자리예요.`]);
+    else rows.push([m.k, `원 기출은 ${esc(P.type)}. 같은 글의 중심 생각을 ${esc(m.k)} 문제로 바꿔 물어요.`]);
+  });
+  const C = P.choice && P.choice.items || [], gk = {}; C.forEach(it => { gk[it.k] = (gk[it.k] || 0) + 1; });
+  if (C.length) rows.push(["어법 · 어휘", Object.keys(gk).map(k => `${esc(k)} ${gk[k]}곳`).join(" · ") + `이 바뀌어 나올 수 있어요.${topGram(3).length ? " 이 지문의 문법 포인트: " + esc(topGram(3).join(", ")) : ""}`]);
+  const hot = WRHOT[P.id];
+  if (hot && hot[2] !== undefined) rows.push(["서술형", `${hot[2] + 1}번째 문장(${esc(hot[3])})이 서술형으로 내기 좋아요.`]);
+  return `<div class="agc ${open ? "open" : ""}"><button class="agh" data-a="agtog"><span class="agm">테</span><b>테라에이전트</b><span class="agt">이 지문은 이렇게 나와요</span><span class="car">${open ? "▲" : "▼"}</span></button>` +
+    (open ? `<dl class="agl">` + rows.map(r => `<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join("") + `</dl>` : "") + `</div>`;
+}
+/* 푼 뒤: 이 변형 문제가 왜 이렇게 만들어졌나 */
+function whyMade(q) {
+  if (q.orig) return "";
+  if (q.p === "blank") {
+    const b = q.blank, T = toks(P, b.si), ph = T.slice(b.from, b.to + 1).join(" ").replace(/[,.;:?!]+$/, "");
+    const lab = P.sentences[b.si].notes.filter(n => n[0] <= b.to && n[1] >= b.from).map(n => n[2]);
+    return `가린 곳은 ${posWord(b.si)}의 「${esc(ph)}」.` + (lab.length ? ` 이 구절에 걸린 문법: ${esc(lab.slice(0, 2).join(", "))}. 어법 · 서술형으로도 나올 수 있어요.` : "");
+  }
+  if (q.p === "order") {
+    const O = q.order, seq = (String(q.o[q.a]).match(/[ABC]/g) || []);
+    const cue = seq.map(k => { const l = linkOf(O[k][0]); return `(${k}) ${l ? "첫머리 " + esc(l) : "연결어 없음"}`; });
+    return `주어진 글 뒤를 세 덩어리로 끊어 섞었어요. 단서: ${cue.join(" → ")}.`;
+  }
+  if (q.p === "summary") return `글 전체를 한 문장으로 줄인 문제예요. (A) · (B)에는 글의 핵심어를 다른 말로 바꾼 낱말이 들어가요.`;
+  return `원 기출은 ${esc(P.type)}. 같은 글을 ${esc(q.k)} 문제로 바꿔, 세부 내용이 아니라 글 전체의 중심 생각을 잡았는지 봐요.`;
+}
 function drillMcq() {
   const d = st.dr, Q = questions(), q = Q[d.q], pk = d.pick[d.q], ans = q.a;
-  const nDone = Q.filter((x, i) => d.pick[i] !== undefined).length, allDone = nDone === Q.length, last = d.q === Q.length - 1;
+  const nDone = Q.filter((x, i) => d.pick[i] !== undefined).length, last = d.q === Q.length - 1;
   const tag = q.orig ? `원 기출 · ${esc(P.src.label.replace(/\s*[\d~]+번$/, ""))} ${q.no}번 · ${esc(q.type)}` : `변형 · ${esc(q.k)}`;
-  let h = `<div style="margin-top:14px">${ENGQ.prog(nDone, Q.length)}</div>` + ENGQ.meta(`${d.q + 1}번 문제`, { tag, hot: q.orig && ENGQ.hot(q.type) }) + `<p class="tq-stem">${esc(q.q)}</p>`;
+  let h = agentCard() + `<div style="margin-top:14px">${ENGQ.prog(nDone, Q.length)}</div>` + ENGQ.meta(`${d.q + 1}번 문제`, { tag, hot: q.orig && ENGQ.hot(q.type) }) + `<p class="tq-stem">${esc(q.q)}</p>`;
   h += q.orig ? origPassage(q) : passageHtml(q);
   if (!q.orig && q.p === "summary") h += `<div class="muted" style="margin:6px 0">(A) ― (B)</div>`;
   h += `<div style="height:18px"></div>` + ENGQ.choices(q.o, {
     attr: 'data-a="mq"', dis: pk !== undefined, label: i => optText(q, i),
     cls: i => pk !== undefined && ans !== null ? (i === ans ? "is-ok" : i === pk ? "is-no" : "") : pk === i ? "is-pick" : ""
   });
-  if (pk !== undefined && (q.why || ans !== null)) h += ENGQ.exp(esc(q.why || ""), ans !== null ? `정답 : ${ans + 1}번` : "정답 미확인");
+  if (pk !== undefined && (q.why || ans !== null)) { const wm = whyMade(q); h += ENGQ.exp(esc(q.why || "") + (wm ? `<div class="whym"><b>테라에이전트 · 왜 이 문제가 나왔나</b>${wm}</div>` : ""), ans !== null ? `정답 : ${ans + 1}번` : "정답 미확인"); }
   h += ENGQ.omr(Q.map((x, i) => ({ pick: d.pick[i], n: x.o.length })), d.q);
   h += ENGQ.bar({
     key: P.id + "/m" + d.q, exp: pk !== undefined, omr: true, pos: d.q + 1, total: Q.length,
     prev: d.q ? 'data-a="mqmove" data-v="-1"' : null,
-    next: !last ? `data-a="mqmove" data-v="1" ${pk === undefined ? "disabled" : ""}` : null,
-    submit: last ? { attr: 'data-a="go" data-v="5"', label: "서술형", dis: !allDone } : null
+    next: !last ? 'data-a="mqmove" data-v="1"' : null,
+    submit: last ? { attr: 'data-a="nxt"', label: nextLabel() } : null
   });
   return h;
 }
@@ -723,9 +843,11 @@ function gradeWrite(W, raw) {
   }
   return r;
 }
-function drillWrite() {
-  const d = st.dr, W = P.write[d.lv];
-  let h = `<div class="tabs">` + P.write.map((w, i) => `<button class="${i === d.lv ? "on" : ""}" data-a="lv" data-v="${i}">Lv${w.lv} ${esc(w.name)}</button>`).join("") + `</div>`;
+function drillWrite(kind) {
+  const d = st.dr, L = wList(kind); if (!L.includes(d.lv)) d.lv = L[0];
+  const W = P.write[d.lv], hot = WRHOT[P.id] || [];
+  let h = L.length > 1 ? `<div class="tabs">` + L.map(i => { const w = P.write[i]; return `<button class="${i === d.lv ? "on" : ""}" data-a="lv" data-v="${i}">Lv${w.lv} ${esc(w.name)}${hot[1] === i ? `<em class="shot">강추</em>` : ""}</button>`; }).join("") + `</div>` : `<h2>${esc(W.name)}${hot[1] === d.lv ? ` <em class="shot">강추</em>` : ""}</h2>`;
+  if (hot[1] === d.lv) h += `<div class="hotn"><b>서술형 강추</b> ${esc(hot[3])} — 학교 시험 서술형에 자주 걸리는 구문이 든 문장이에요.</div>`;
   h += `<div class="box stem-box">${esc(W.ctx).replace("________", `<span class="blank"></span>`)}</div>`;
   if (W.ko) h += `<div class="muted stem-ko">우리말: ${esc(W.ko)}</div>`;
   if (W.cond) h += `<div class="cond"><b>조건</b><ol>${W.cond.map(c => `<li>${esc(c)}</li>`).join("")}</ol></div>`;
@@ -747,7 +869,7 @@ function drillWrite() {
     h += `<details><summary>모범 답안 + 채점 기준</summary><div class="fix">${W.ans.map(a => esc(a)).join("<br>")}</div><div class="rubric">${esc(W.rub)}</div></details>`;
   }
   const isDone = !!doneMap()[st.pid];
-  h += `<div class="row">${isDone ? `<span class="pill g">완료한 지문</span>` : `<button class="btn pri" data-a="finish">지문 완료</button>`}<button class="btn ghost" data-a="back">목록</button></div>`;
+  h += `<div class="row"><button class="btn pri" data-a="nxt">${nextLabel()}</button>${isDone ? `<span class="pill g">완료한 지문</span>` : ""}<button class="btn ghost" data-a="back">목록</button></div>`;
   return h;
 }
 
@@ -853,6 +975,7 @@ document.addEventListener("click", e => { if (wbEl && !e.target.closest("#wbub")
 document.addEventListener("keydown", e => { if (e.key === "Escape") wbHide(); });
 
 /* ───────── 이벤트 ───────── */
+root.addEventListener("keydown", e => { if ((e.key === "Enter" || e.key === " ") && e.target.matches && e.target.matches('[role="button"][data-a]')) { e.preventDefault(); e.target.click(); } });
 root.addEventListener("input", e => { if (e.target.id === "wr") st.dr.text[st.dr.lv] = e.target.value; });
 root.addEventListener("click", e => {
   const tk = e.target.closest(".pick .tk");
@@ -898,9 +1021,49 @@ root.addEventListener("click", e => {
       weekWords().concat(wrongWords()).forEach(w => { if (!seen[w.en]) { seen[w.en] = 1; W.push(w); } });
       WT = { words: W, phase: "list", queue: [], cur: 0, pick: null, opts: [], wrong: 0, first: {} }; nav.tab = "wtest"; break;
     }
-    case "step": { const n = +v; if (n > st.maxStep) return; st.step = n; window.scrollTo(0, 0); break; }
-    case "vskip": bump(1); st.step = 1; break;
-    case "vstart": { const V = curV(), W = curWords(); vStart(V, W); break; }
+    case "step": st.step = +v; enterStep(); saveProg(); window.scrollTo(0, 0); break;
+    case "nxt": goNext(false); break;
+    case "skip": goNext(true); break;
+    case "plantog": st.planOpen = !st.planOpen; break;
+    case "pl": { let pl = planOf(st.pid).slice(); pl = pl.includes(v) ? pl.filter(x => x !== v) : pl.concat(v); if (!pl.some(hasStep)) break; LS.set("plan." + st.pid, STEP_KEYS.filter(k => pl.includes(k))); enterStep(); saveProg(); break; }
+    case "plandef": LS.set("plan", planOf(st.pid)); b.textContent = "저장했어요"; return;
+    case "planreset": LS.set("plan." + st.pid, null); enterStep(); break;
+    case "pdef": { let pl = planDef().slice(); pl = pl.includes(v) ? pl.filter(x => x !== v) : pl.concat(v); if (pl.length) LS.set("plan", STEP_KEYS.filter(k => pl.includes(k))); break; }
+    case "sc": {
+      const m = scopeMap(); if (m[v]) delete m[v]; else m[v] = 1; LS.set("scope", m);
+      if (nav.tab !== "explore") break;
+      /* 목록을 다시 그리면 줄마다 등장 연출이 되풀이된다. 누른 줄만 그 자리에서 바꾼다 */
+      const on = !!m[v]; b.classList.toggle("on", on); b.textContent = on ? "✓" : ""; b.setAttribute("aria-pressed", on); b.parentNode.classList.toggle("insc", on);
+      const all = root.querySelectorAll(".scb").length, n = root.querySelectorAll(".scb.on").length, sb = root.querySelector(".scbar b"), sa = root.querySelector('.scbar [data-a="scall"]');
+      if (sb) sb.textContent = n; if (sa) sa.textContent = n === all ? "모두 빼기" : "이 회차 모두 담기";
+      return;
+    }
+    case "scall": { const m = scopeMap(), e = INDEX.find(x => x.u === v), rd = e.p.filter(p => p[3]); const all = rd.every(p => m[p[0]]); rd.forEach(p => { if (all) delete m[p[0]]; else m[p[0]] = 1; }); LS.set("scope", m); break; }
+    case "scon": LS.set("scopeOn", v === "1"); break;
+    case "schot": nav.schot = v === "1"; break;
+    case "vsel": {
+      const s = st.voc.sel; if (s[v]) delete s[v]; else s[v] = 1;
+      /* 누른 단어 칸만 그 자리에서 바꾼다(다시 그리면 아래 단추가 깜빡인다) */
+      const on = !!s[v], n = Object.keys(s).length; b.classList.toggle("sel", on); b.setAttribute("aria-pressed", on); b.querySelector(".ckb").textContent = on ? "✓" : "";
+      const q = x => root.querySelector(x), vs = q('[data-a="vstart"]');
+      q(".vbar b").textContent = n; vs.disabled = !n; vs.textContent = n ? "고른 " + n + "개 시험" : "외울 단어를 고르세요";
+      q('[data-a="vdone"]').textContent = n ? "시험 건너뛰기" : "다 아는 단어예요"; q('[data-a="vall"]').textContent = n === P.words.length ? "모두 풀기" : "모두 고르기";
+      return;
+    }
+    case "vall": { const s = st.voc; const all = Object.keys(s.sel).length === P.words.length; s.sel = {}; if (!all) P.words.forEach((w, i) => { s.sel[i] = 1; }); break; }
+    case "vdone": { const V = st.voc; V.words = P.words.filter((w, i) => V.sel[i]); recordKnow(); if (V.words.length) recordWords(V.words, P.id); bump(); V.phase = "done"; V.queue = []; break; }
+    case "vquit": st.voc.phase = "done"; break;
+    case "vagain": st.voc.phase = "list"; break;
+    case "vstart": {
+      if (nav.tab === "wtest") { vStart(WT, WT.words); break; }
+      const V = st.voc; V.words = P.words.filter((w, i) => V.sel[i]); if (!V.words.length) return;
+      recordKnow(); recordWords(V.words, P.id); vStart(V, V.words); break;
+    }
+    case "sen": { const an = st.an; an.note = -1; an.si = an.si === +v ? -1 : +v; if (an.si >= 0) an.seen[an.si] = 1; render(); const pn = root.querySelector(".anp"); if (pn) { const r = pn.getBoundingClientRect(); if (r.bottom > window.innerHeight - 90 || r.top < 60) pn.scrollIntoView({ block: r.height > window.innerHeight - 160 ? "start" : "nearest", behavior: "smooth" }); } return; }
+    case "senmv": { const an = st.an; an.note = -1; an.si = Math.max(0, Math.min(P.sentences.length - 1, an.si + +v)); an.seen[an.si] = 1; break; }
+    case "senx": st.an.si = -1; break;
+    case "ank": st.an.k = +v; st.an.note = -1; break;
+    case "agtog": d.ag = d.ag === false; break;
     case "vpick": {
       vPick(curV(), curWords(), +v); render();
       /* 단어 테스트는 보기 칸 색(ok/no)만 바뀌어 짜잔이 못 알아본다. 직접 넘긴다(2026-10-09) */
@@ -909,16 +1072,12 @@ root.addEventListener("click", e => {
     }
     case "vnext": {
       const V = curV(), fin = vNext(V, curWords());
-      if (fin && nav.tab === "p") { bump(1); recordWords(P.words, P.id); }
+      if (fin && nav.tab === "p") bump();
       break;
     }
-    case "annext": { const an = st.an; an.note = -1; if (an.k < 3) an.k++; else { an.si++; an.k = 0; } break; }
-    case "anprev": { const an = st.an; an.note = -1; if (an.k > 0) an.k--; else if (an.si > 0) { an.si--; an.k = 3; } break; }
-    case "anend": bump(2); st.step = 2; window.scrollTo(0, 0); break;
-    case "bgtog": st.an.bg = st.an.bg === false; break;
+    case "bgtog": st.an.bg = !st.an.bg; break;
     case "note": st.an.note = st.an.note === +v ? -1 : +v; break;
     case "svshow": { const s = P.sentences[P.checks[c.i].si]; c.found = { S: s.main.map((x, k) => k), V: s.main.map((x, k) => k) }; c.ph = "done"; c.ok = false; c.pop = []; c.msg = "정답 확인"; break; }
-    case "go": { const n = +v; bump(n); st.step = n; window.scrollTo(0, 0); break; }
     case "ckpick": { c.pick = +v; if (+v === P.checks[c.i].a) c.score++; break; }
     case "cknext": c.i++; c.ph = "S"; svInit(c); c.pop = []; c.flash = null; c.miss = 0; c.msg = ""; c.pick = null; break;
     case "ch": if (!d.graded) d.ch[+b.dataset.n] = +v; break;
@@ -936,11 +1095,6 @@ root.addEventListener("click", e => {
       d.res[d.lv] = gradeWrite(W, raw); break;
     }
     case "wreset": delete d.res[d.lv]; d.text[d.lv] = ""; if (d.tiles[d.lv]) delete d.tiles[d.lv]; break;
-    case "finish": {
-      const dm = doneMap(); dm[st.pid] = Date.now(); LS.set("done", dm); markAtt();
-      const pr = LS.get("prog." + st.pid, {}); pr.done = true; pr.max = 5; LS.set("prog." + st.pid, pr);
-      nav.tab = nav.back || "home"; break;
-    }
   }
   render();
 });
