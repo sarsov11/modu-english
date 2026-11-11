@@ -130,7 +130,7 @@ function loadSrc(uid) {
     if (window.MYE_DATA[uid]) return res(window.MYE_DATA[uid]);
     const s = document.createElement("script");
     s.src = "data/" + uid + ".js";
-    s.onload = () => (window.MYE_DATA[uid] ? res(window.MYE_DATA[uid]) : rej(new Error("데이터 없음")));
+    s.onload = () => { if (!window.MYE_DATA[uid]) return rej(new Error("데이터 없음")); const a = document.createElement("script"); a.src = "data/ag_" + uid + ".js"; a.onload = a.onerror = () => res(window.MYE_DATA[uid]); document.head.appendChild(a); };
     s.onerror = () => rej(new Error("파일을 불러오지 못했다"));
     document.head.appendChild(s);
   });
@@ -765,7 +765,13 @@ const linkOf = si => { const m = P.sentences[si].t.match(LINKW); return m ? m[1]
 const posWord = si => si === 0 ? "글을 여는 첫 문장" : si === P.sentences.length - 1 ? "글을 맺는 마지막 문장" : `${P.sentences.length}문장 가운데 ${si + 1}번째 문장`;
 function topGram(n) { const c = {}; P.sentences.forEach(s => s.notes.forEach(x => { c[x[2]] = (c[x[2]] || 0) + 1; })); return Object.keys(c).sort((a, b) => c[b] - c[a]).slice(0, n); }
 function agentCard() {
-  const d = st.dr, open = d.ag !== false, rows = [], seen = {};
+  const d = st.dr, open = d.ag !== false, rows = [], seen = {}, AG = (window.MYE_AG || {})[P.id];
+  if (AG && AG.fit) {   /* 지문마다 따로 쓴 글(원천\에이전트공장.py). 풀기 전에 보이므로 정답은 들어 있지 않다 */
+    AG.fit.forEach(x => rows.push([esc(x.k) + (x.k === P.type ? `<small>원 기출</small>` : ""), esc(x.d)]));
+    if (AG.write) rows.push(["서술형", `${AG.write.s + 1}번째 문장. ` + esc(AG.write.d)]);
+    return `<div class="agc ${open ? "open" : ""}"><button class="agh" data-a="agtog"><span class="agm">테</span><b>테라에이전트</b><span class="agt">이 지문은 이렇게 나와</span><span class="car">${open ? "▲" : "▼"}</span></button>` +
+      (open ? `<dl class="agl">` + rows.map(r => `<div><dt>${r[0]}</dt><dd>${r[1]}</dd></div>`).join("") + `</dl>` : "") + `</div>`;
+  }
   rows.push(["원 기출", `${esc(P.type)} 문제로 나왔던 지문이에요.`]);
   P.mcq.forEach(m => {
     if (seen[m.k]) return; seen[m.k] = 1;
@@ -783,6 +789,8 @@ function agentCard() {
 }
 /* 푼 뒤: 이 변형 문제가 왜 이렇게 만들어졌나 */
 function whyMade(q) {
+  const AG = (window.MYE_AG || {})[P.id];
+  if (AG) { const t = q.orig ? AG.orig : AG.mcq && AG.mcq[q.k]; if (t) return esc(t); }
   if (q.orig) return "";
   if (q.p === "blank") {
     const b = q.blank, T = toks(P, b.si), ph = T.slice(b.from, b.to + 1).join(" ").replace(/[,.;:?!]+$/, "");
