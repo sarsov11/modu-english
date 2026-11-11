@@ -342,6 +342,7 @@ const ENGQ = (() => {
     if (b.dataset.key !== lastKey) { try { TERA_PAD.penHide(); } catch (e) { } lastKey = b.dataset.key; const pb = b.querySelector('[data-tq="pen"]'); if (pb) pb.classList.remove("is-on"); }
     const w = root.querySelector(".wrap"); if (w) w.classList.toggle("has-omr", !!root.querySelector(".tq-omr"));
     if (window.TNQ && window.TNQ.terms) TERA_Q.terms(window.TNQ.terms);
+    (window.TNQ_KEEP || []).forEach(x => { if (x && x.terms) TERA_Q.terms(x.terms); });   // 1110 개념어 파일(terms.js) — diagram.js 가 TNQ 를 비워 따로 모아 둔 것
     root.querySelectorAll('[data-tq="badge"]').forEach(h => { const n = +h.dataset.on; if (n && !h.firstChild) TERA_Q.badge(h, { stars: n }); });
     root.querySelectorAll('[data-tq="tg"]').forEach(h => { if (!h.firstChild) TERA_Q.toggle(h); });
     root.querySelectorAll(".tq-stem, .tq-exp-box").forEach(e => TERA_Q.annotate(e));
