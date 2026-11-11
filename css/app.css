@@ -696,7 +696,7 @@ html body .tm-next s{font-size:14px}
 .shot{color:#333941;background:#fff;border:1px solid #9AA1AC;padding:2px 7px}
 .anp{border:1px solid #C9CED6;box-shadow:0 6px 18px rgba(17,20,25,.06)}
 .anp .pill.g{background:var(--sel-bg);color:var(--sel-ink)}
-html body .anp .seg.an4 button.on{border-color:var(--sel-line);background:var(--sel-bg);color:var(--sel-ink)}
+html body .anp .seg.an4 button.on{box-shadow:inset 0 0 0 1.5px var(--sel-line);border-color:var(--sel-line);background:var(--sel-bg);color:var(--sel-ink)}
 .itw.insc .it{border-color:var(--sel-line);background:var(--sel-bg)}
 .scb:hover{border-color:var(--sel-line)}
 .scb.on{background:var(--sel-dot);border-color:var(--sel-dot)}
