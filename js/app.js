@@ -373,7 +373,7 @@ const ENGQ = (() => {
   function load() {
     if (loading) return; loading = true;
     const add = src => new Promise(res => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = res; document.head.appendChild(s); });
-    Promise.all([window.TERA_Q ? 0 : add("js/tera-q.js?v=1110p"), window.TERA_PAD ? 0 : add("js/tera-pad.js?v=1111c")]).then(() => { loading = false; after(); });
+    Promise.all([window.TERA_Q ? 0 : add("js/tera-q.js?v=1111d"), window.TERA_PAD ? 0 : add("js/tera-pad.js?v=1111c")]).then(() => { loading = false; after(); });
   }
   function after() {
     const b = root.querySelector(".tq-bar");
