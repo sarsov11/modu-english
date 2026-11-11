@@ -1,5 +1,5 @@
 "use strict";
-/* 모두의 영어 — 출제 지도 어댑터(이름 1111 대표님: 영어는 합격이 아니라 등급이라 「합격 지도」가 안 맞는다) (화면표준 11절). 공용 js/tera-map.js 에 앱 자료를 groups → nodes → leaves 로 넘긴다.
+/* 모두의 영어 — 출제 지도 어댑터(이름 1111 대표님: 영어는 합격이 아니라 등급이라 「합격 지도」가 안 맞는다) (화면표준 11절). 공용 js/tera-map.js?v=1111g 에 앱 자료를 groups → nodes → leaves 로 넘긴다.
    줄 = 기출 유형 · 문법 · 서술형 · 단어. 해마다 문항 수(avg)는 평가원(모평·수능) 기출 문항 색인에서 센 값만 쓰고, 없는 줄은 비워 둔다.
    app.js 의 INDEX · LS · doneMap · weekWords 등과 drill.js 의 화면을 호출 시점에 쓴다. */
 (function () {
@@ -8,7 +8,7 @@
     const s = document.createElement("script"); s.src = src; s.onload = () => (ready() ? res() : rej(new Error("데이터 없음"))); s.onerror = () => rej(new Error("파일을 불러오지 못했다")); document.head.appendChild(s);
   });
   const prep = () => Promise.all([
-    loadJs("js/tera-map.js?v=1111d", () => window.TERA_MAP),
+    loadJs("js/tera-map.js?v=1111g", () => window.TERA_MAP),
     loadJs("data/drill_grammar.js", () => window.MYE_DG),
     loadJs("data/gramfreq.js?v=1111e", () => window.MYE_GF).catch(() => { window.MYE_GF = {}; })
   ]);

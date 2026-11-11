@@ -348,7 +348,7 @@ function renderBase() {
     .map(([k, n]) => `<button class="${nav.tab === k || (k === "drill" && (nav.tab === "gram" || nav.tab === "writ")) ? "on" : ""}" data-a="tab" data-v="${k}">${TABI[k]}<span>${n}</span></button>`).join("") + `</div>`;
   document.body.classList.toggle("notab", !!root.querySelector(".top .back"));
 }
-/* ───────── 문제 화면 공용 부품 어댑터 (화면표준 12절 · 공용 tera-q.js / tera-pad.js 의 펜) ───────── */
+/* ───────── 문제 화면 공용 부품 어댑터 (화면표준 12절 · 공용 tera-q.js?v=1111g / tera-pad.js 의 펜) ───────── */
 const ENGQ = (() => {
   const I = {
     help: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="8.5"/><path d="M9.7 9.5a2.4 2.4 0 1 1 3.3 2.2c-.7.3-1 .8-1 1.6M12 16.5h.01" stroke-linecap="round"/></svg>',
@@ -397,7 +397,7 @@ const ENGQ = (() => {
   function load() {
     if (loading) return; loading = true;
     const add = src => new Promise(res => { const s = document.createElement("script"); s.src = src; s.onload = res; s.onerror = res; document.head.appendChild(s); });
-    Promise.all([window.TERA_Q ? 0 : add("js/tera-q.js?v=1111d"), window.TERA_PAD ? 0 : add("js/tera-pad.js?v=1111c")]).then(() => { loading = false; after(); });
+    Promise.all([window.TERA_Q ? 0 : add("js/tera-q.js?v=1111g"), window.TERA_PAD ? 0 : add("js/tera-pad.js?v=1111c")]).then(() => { loading = false; after(); });
   }
   function after() {
     const b = root.querySelector(".tq-bar");
