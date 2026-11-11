@@ -8,7 +8,7 @@
     const s = document.createElement("script"); s.src = src; s.onload = () => (ready() ? res() : rej(new Error("데이터 없음"))); s.onerror = () => rej(new Error("파일을 불러오지 못했다")); document.head.appendChild(s);
   });
   const prep = () => Promise.all([
-    loadJs("js/tera-map.js?v=1111b", () => window.TERA_MAP),
+    loadJs("js/tera-map.js?v=1111d", () => window.TERA_MAP),
     loadJs("data/drill_grammar.js", () => window.MYE_DG),
     loadJs("data/drill_writing.js", () => window.MYE_DW)
   ]);
