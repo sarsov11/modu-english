@@ -744,3 +744,9 @@ html:root .anp{border-color:#7FB8B2;box-shadow:0 6px 18px rgba(15,118,110,.08)}
 html:root .fullp .sb.seen{border-bottom-color:#7FB8B2}
 html:root .wlist.pickw .wl .ps{background:#E3F2F0;color:#0B4F4A}
 @media (max-width:480px){.steps.free .st{min-width:40px}.steps.free .lab{font-size:12px;white-space:nowrap}.fullp{font-size:17px}.agl dt{width:64px}.seg.an4 button{font-size:11.5px}}
+/* 1112 글씨는 검정 2: 본문 기본색 · 문제 화면 글씨 변수(푸른 기운 회색 → 중립) · 안내 말풍선 제목 · 설정 합계 줄 */
+html:root{--tq-ink:#111419;--tq-ink2:#333941;--tq-sub:#5F6670;--tq-line:#E5E7EB;--tq-fill:#F4F5F7;--sub:#5F6670}
+html:root body{color:#111419}
+html:root .passage,html:root .box,html:root .fullp,html:root .sent,html:root .ko{color:#111419}
+html:root body .tq-coach b,html:root .dsum{color:#111419}
+html:root .dsum{color:#5F6670}
