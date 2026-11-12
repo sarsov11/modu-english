@@ -724,7 +724,7 @@ html body .seg button.on,html body .tabs button.on{background:var(--sel-bg);colo
 html:root{--pt:#0F766E;--pt-2:#0B5F59;--pt-soft:rgba(15,118,110,.10);--pt-ink:#0B4F4A;
   --green:#0B4F4A;--green-soft:rgba(15,118,110,.10);--yellow:rgba(15,118,110,.16);--yellow-soft:rgba(15,118,110,.07);--yellow-line:#0F766E;--yellow-dk:#0F766E;
   --sel-bg:#E3F2F0;--sel-line:#0F766E;--sel-ink:#0B4F4A;--sel-dot:#0F766E;
-  --tq-p:#0F766E;--tq-ps:#EEF7F6;--tq-pi:#0B4F4A;--ink:#12302D;--line:#DCE7E5}
+  --tq-p:#0F766E;--tq-ps:#EEF7F6;--tq-pi:#0B4F4A;--ink:#111419;--line:#E5E7EB}
 html:root .emap{--pt:#0F766E}
 html:root .tk.hS .w,html:root .anp .tk.hS .w{background:rgba(15,118,110,.26);border-bottom:2px solid #0B4F4A}
 html:root .tk.hV .w,html:root .anp .tk.hV .w,html:root .pick .tk.mV .w{background:rgba(15,118,110,.09);border-bottom:2px dashed #0F766E}
@@ -733,8 +733,10 @@ html:root .tk.hl .w,html:root .etk.sel{background:rgba(15,118,110,.16)}
 html:root .anp .tk .br,html:root .anp .legend b,html:root .anp .notes .n,html:root .anp .lb.S{color:#0B4F4A}
 html:root .anp .lb.V{color:#0F766E}
 html:root .agm{background:#0F766E}
-html:root .agl dt,html:root .whym b,html:root .hotn b,html:root .vbar b,html:root .scbar b{color:#0B4F4A}
-html:root .agc{background:#F2F8F7;border-color:#DCE7E5}
+/* 1112 글씨는 검정(대표님): 제목 · 지문 · 문제 · 선지 · 카드 제목은 #111419. 청록은 단추 · 링크 · 켜진 표시 · 딱지 · 숫자 강조에만 */
+html:root .agl dt,html:root .whym b,html:root .hotn b{color:#111419}
+html:root .vbar b,html:root .scbar b{color:#0B4F4A}
+html:root .agc{background:#F4F5F7;border-color:#E5E7EB}
 html:root .lk{color:#0B4F4A}
 html:root .shot,html:root .whot{color:#0B4F4A;border-color:#7FB8B2}
 html:root .hotn{border-left-color:#0F766E;background:#EEF7F6}
